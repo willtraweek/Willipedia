@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: wiki
+      POSTGRES_PASSWORD: wiki
+      POSTGRES_DB: wiki
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - wiki-pgdata:/var/lib/postgresql/data
+
+volumes:
+  wiki-pgdata:
+
