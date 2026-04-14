@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 
@@ -6,6 +5,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import matter from "gray-matter";
 import OpenAI from "openai";
 
+import { sha256 } from "./hash";
 import type {
   AppConfig,
   ChunkingProvider,
@@ -512,7 +512,7 @@ async function embedWithRetry(
   return output;
 }
 
-async function walkMarkdownFiles(root: string): Promise<string[]> {
+export async function walkMarkdownFiles(root: string): Promise<string[]> {
   const files: string[] = [];
   const entries = await fs.readdir(root, { withFileTypes: true });
 
@@ -527,7 +527,11 @@ async function walkMarkdownFiles(root: string): Promise<string[]> {
       continue;
     }
 
-    if (entry.isFile() && absolutePath.toLowerCase().endsWith(".md")) {
+    if (
+      entry.isFile() &&
+      absolutePath.toLowerCase().endsWith(".md") &&
+      entry.name.toLowerCase() !== "readme.md"
+    ) {
       files.push(absolutePath);
     }
   }
@@ -599,9 +603,6 @@ function joinChunk(current: string, addition: string, separator = "\n\n"): strin
   return `${current}${separator}${addition}`;
 }
 
-function sha256(value: string): string {
-  return createHash("sha256").update(value).digest("hex");
-}
 
 function firstDefinedString(...values: unknown[]): string | undefined {
   for (const value of values) {

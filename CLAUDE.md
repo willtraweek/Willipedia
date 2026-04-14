@@ -1,96 +1,73 @@
-# Personal Wiki MCP Server (lyon)
+# Willipedia
 
-MCP server + Postgres indexer for the Personal Wiki. Exposes compiled wiki pages to AI agents via hybrid search (keyword + vector + RRF fusion).
+This repo compiles source material into wiki pages, indexes the result in Postgres, and serves it to agents over MCP stdio.
 
-## Project structure
-
-```
-src/
-  cli.ts              # CLI entry point (wiki migrate|sync|search|serve|status)
-  core/
-    config.ts         # Env var loading and validation (Zod)
-    db.ts             # Postgres queries, connection pool, migrations
-    indexer.ts        # Scan, chunk, embed, store pipeline
-    search.ts         # Hybrid search with RRF fusion + query expansion
-    types.ts          # Shared interfaces
-  mcp/
-    server.ts         # MCP stdio transport setup
-    tools.ts          # MCP tool handlers (search_compiled, get_page, get_source, explore_related)
-migrations/
-  001_initial.sql     # Pages, chunks, tags, links, query_log tables + pgvector/pg_trgm
-test/
-  fixtures/compiled/  # 3 test wiki pages
-  fixtures/raw/       # Raw source fixture
-  setup.ts            # In-memory store, deterministic embeddings, test helpers
-  *.test.ts           # Unit tests (bun:test)
-```
-
-## Development setup
+## Working Commands
 
 ```bash
-# Start Postgres with pgvector
-docker compose up -d
-
-# Copy and fill in API keys
-cp .env.example .env
-
-# Install dependencies
-bun install
-
-# Run migrations
 bun run migrate
-
-# Index compiled wiki pages
 bun run sync
-
-# Start MCP server (stdio transport)
+bun run search -- "karpathy"
 bun run serve
+bun run src/cli.ts brain schema
+bun run src/cli.ts brain ingest https://example.com/post
+bun run src/cli.ts brain drain --limit=10
 ```
 
-Required env vars: `DATABASE_URL`, `OPENAI_API_KEY`. Optional: `ANTHROPIC_API_KEY` (enables LLM chunking), `ENABLE_QUERY_EXPANSION` (default true).
+`wiki brain schema` is the only command that does not construct the runtime.
+Everything else goes through `loadConfig()` and requires `DATABASE_URL` plus `OPENAI_API_KEY`.
 
-## CLI commands
+## Repo Map
 
-| Command | Description |
-|---------|-------------|
-| `wiki migrate` | Run pending SQL migrations |
-| `wiki sync` | Index all compiled/ pages into Postgres |
-| `wiki search <query>` | Hybrid keyword + vector search |
-| `wiki serve` | Start MCP server on stdio |
-| `wiki status` | Show index health (page count, chunks, stale pages) |
-
-## Testing
-
-```bash
-bun test          # Run all tests (uses in-memory store, no Postgres needed)
-bun run typecheck # TypeScript type checking
+```text
+src/
+  cli.ts         top-level CLI dispatch
+  brain/         compiler, source handlers, routing schema, quotas
+  core/          config, database, indexing, search, shared types
+  mcp/           MCP server bootstrap and tool handlers
+Clippings/
+  people/README.md
+  concepts/README.md
+  sources/README.md
+migrations/
+  001_initial.sql
+  002_brain.sql
+test/
+  brain-*.test.ts
+  cli.test.ts
+  setup.ts
 ```
 
-## MCP tools
+## Repo-Specific Rules
 
-| Tool | Description |
-|------|-------------|
-| `search_compiled` | Hybrid keyword + vector search with RRF fusion |
-| `get_page` | Fetch full page by slug (exact match, fuzzy fallback) |
-| `get_source` | Read raw source file with path traversal protection |
-| `explore_related` | BFS traversal of wiki link graph (depth 1-3) |
+- Treat `Clippings/*/README.md` as compiler routing schema. They are not content pages, and the indexer intentionally skips them.
+- The compiler supports `article` and `youtube` sources only.
+- `wiki brain ingest` and `wiki brain drain` already run migrations and reindex after they finish. `wiki sync` is mainly for manual edits or external writers touching `COMPILED_PATH`.
+- Existing entity pages are not body-overwritten during ingest. The compiler only appends new provenance URLs to `sources:` frontmatter and writes a separate page under `Clippings/sources/`.
+- `RAW_PATH` is only used by the MCP `get_source` tool. The compiler does not persist fetched raw payloads there today.
+- Domain throttling lives in `rate-limits.json`. When a domain exceeds quota, the compiler records a row in `pending_ingests` for later `wiki brain drain`.
+- `ANTHROPIC_API_KEY` is optional. Missing Anthropic falls back to heuristics for compiler output and to non-expanded/recursive retrieval behavior.
 
-## Skill routing
+## MCP Surface
 
-When the user's request matches an available skill, ALWAYS invoke it using the Skill
-tool as your FIRST action. Do NOT answer directly, do NOT use other tools first.
-The skill has specialized workflows that produce better results than ad-hoc answers.
+- `search_compiled`: hybrid keyword + vector retrieval with reciprocal-rank fusion
+- `get_page`: exact slug lookup with fuzzy fallback
+- `get_source`: bounded raw-file access under `RAW_PATH`
+- `explore_related`: breadth-first traversal of stored wiki links
+
+## Skill Routing
+
+When the user's request matches an available skill, invoke that skill first instead of answering ad hoc.
 
 Key routing rules:
-- Product ideas, "is this worth building", brainstorming → invoke office-hours
-- Bugs, errors, "why is this broken", 500 errors → invoke investigate
-- Ship, deploy, push, create PR → invoke ship
-- QA, test the site, find bugs → invoke qa
-- Code review, check my diff → invoke review
-- Update docs after shipping → invoke document-release
-- Weekly retro → invoke retro
-- Design system, brand → invoke design-consultation
-- Visual audit, design polish → invoke design-review
-- Architecture review → invoke plan-eng-review
-- Save progress, checkpoint, resume → invoke checkpoint
-- Code quality, health check → invoke health
+
+- Product ideas, "is this worth building", brainstorming -> `office-hours`
+- Bugs, errors, unexpected behavior -> `investigate`
+- Ship, deploy, push, create PR -> `ship`
+- QA, test the site, find bugs -> `qa`
+- Code review, check my diff -> `review`
+- Update docs after shipping -> `document-release`
+- Weekly retro -> `retro`
+- Design system or brand work -> `design-consultation`
+- Visual audit or polish -> `design-review`
+- Architecture review -> `plan-eng-review`

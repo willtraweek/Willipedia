@@ -64,6 +64,10 @@ export interface PageEmbeddingRecord {
   embedding: number[];
 }
 
+export interface EntityEmbeddingMatch extends PageSummary {
+  score: number;
+}
+
 export interface DedupPair {
   leftSlug: string;
   rightSlug: string;
@@ -142,6 +146,33 @@ export interface StatusSnapshot {
   stalePages: number;
 }
 
+export type SourceFormat = "article" | "youtube";
+
+export interface SourceRecord {
+  url: string;
+  format: SourceFormat;
+  contentHash: string;
+  pageSlugs: string[];
+  fetchedAt: string;
+  updatedAt: string;
+}
+
+export interface SourceRecordInput {
+  url: string;
+  format: SourceFormat;
+  contentHash: string;
+  pageSlugs: string[];
+}
+
+export interface PendingIngestRecord {
+  id: number;
+  url: string;
+  format: SourceFormat | null;
+  queuedAt: string;
+  status: string;
+  error: string | null;
+}
+
 export interface RelatedPage extends PageSummary {
   depth: number;
   incoming: boolean;
@@ -188,7 +219,34 @@ export interface ToolStore {
   insertQueryLog(entry: QueryLogEntry): Promise<void>;
 }
 
+export interface CompilerStore {
+  getPageBySlug(slug: string): Promise<PageRecord | null>;
+  findBestTitleMatch(input: string, threshold: number): Promise<PageRecord | null>;
+  searchEntityEmbeddings(
+    embedding: number[],
+    limit: number,
+  ): Promise<EntityEmbeddingMatch[]>;
+  upsertSource(source: SourceRecordInput): Promise<SourceRecord>;
+  checkSourceExists(url: string): Promise<SourceRecord | null>;
+  upsertEntityEmbedding(slug: string, embedding: number[]): Promise<void>;
+  checkDomainQuota(domain: string, date: string): Promise<number>;
+  incrementDomainQuota(domain: string, date: string): Promise<number>;
+  queuePendingIngest(
+    url: string,
+    format: SourceFormat | null,
+  ): Promise<PendingIngestRecord>;
+  getPendingIngests(limit?: number): Promise<PendingIngestRecord[]>;
+  markIngestComplete(
+    id: number,
+    status: string,
+    error?: string | null,
+  ): Promise<void>;
+  withSourceLock<T>(
+    url: string,
+    callback: (store: CompilerStore) => Promise<T>,
+  ): Promise<T>;
+}
+
 export interface StatusStore {
   getStatusSnapshot(currentPipelineVersion: string): Promise<StatusSnapshot>;
 }
-
