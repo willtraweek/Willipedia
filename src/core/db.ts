@@ -6,9 +6,12 @@ import pgvector from "pgvector/pg";
 
 import type {
   AppConfig,
+  CompilerStore,
+  EntityEmbeddingMatch,
   IndexedChunk,
   IndexerStore,
   IndexerTransaction,
+  PendingIngestRecord,
   PageEmbeddingRecord,
   PageRecord,
   PageSnapshot,
@@ -16,6 +19,9 @@ import type {
   QueryLogEntry,
   SearchCandidate,
   SearchStore,
+  SourceRecord,
+  SourceRecordInput,
+  SourceFormat,
   StatusSnapshot,
   StatusStore,
   ToolStore,
@@ -24,7 +30,9 @@ import type {
 
 type Queryable = Pool | PoolClient;
 
-export class WikiDatabase implements IndexerStore, SearchStore, ToolStore, StatusStore {
+export class WikiDatabase
+  implements IndexerStore, SearchStore, ToolStore, StatusStore, CompilerStore
+{
   readonly pool: Pool;
   readonly config: AppConfig;
 
@@ -251,33 +259,262 @@ export class WikiDatabase implements IndexerStore, SearchStore, ToolStore, Statu
   }
 
   async getPageBySlug(slug: string): Promise<PageRecord | null> {
+    return getPageBySlugFrom(this.pool, slug);
+  }
+
+  async findBestTitleMatch(
+    input: string,
+    threshold: number,
+  ): Promise<PageRecord | null> {
     const result = await this.pool.query<PageRecordRow>(
       `
-        SELECT
-          p.slug,
-          p.title,
-          p.content,
-          p.frontmatter,
-          p.freshness,
-          p.confidence,
-          p.created_at AS "createdAt",
-          p.updated_at AS "updatedAt",
-          COALESCE(array_agg(DISTINCT t.tag) FILTER (WHERE t.tag IS NOT NULL), '{}') AS tags,
-          COALESCE(
-            array_agg(DISTINCT l.target_slug) FILTER (WHERE l.target_slug IS NOT NULL),
-            '{}'
-          ) AS "outgoingLinks"
-        FROM pages p
-        LEFT JOIN tags t ON t.page_id = p.id
-        LEFT JOIN links l ON l.source_page_id = p.id
-        WHERE p.slug = $1
-        GROUP BY p.id
+        SELECT *
+        FROM (
+          SELECT
+            p.slug,
+            p.title,
+            p.content,
+            p.frontmatter,
+            p.freshness,
+            p.confidence,
+            p.created_at AS "createdAt",
+            p.updated_at AS "updatedAt",
+            COALESCE(array_agg(DISTINCT t.tag) FILTER (WHERE t.tag IS NOT NULL), '{}') AS tags,
+            COALESCE(
+              array_agg(DISTINCT l.target_slug) FILTER (WHERE l.target_slug IS NOT NULL),
+              '{}'
+            ) AS "outgoingLinks",
+            similarity(p.title, $1) AS match_score
+          FROM pages p
+          LEFT JOIN tags t ON t.page_id = p.id
+          LEFT JOIN links l ON l.source_page_id = p.id
+          GROUP BY p.id
+        ) ranked
+        WHERE ranked.match_score >= $2
+        ORDER BY ranked.match_score DESC, ranked.updatedAt DESC
+        LIMIT 1
       `,
-      [slug],
+      [input, threshold],
     );
 
     const row = result.rows[0];
     return row ? pageRecordFromRow(row) : null;
+  }
+
+  async searchEntityEmbeddings(
+    embedding: number[],
+    limit: number,
+  ): Promise<EntityEmbeddingMatch[]> {
+    const result = await this.pool.query<EmbeddingMatchRow>(
+      `
+        SELECT
+          p.slug,
+          p.title,
+          1 - (e.embedding <=> $1) AS score
+        FROM entity_embeddings e
+        JOIN pages p ON p.slug = e.slug
+        ORDER BY e.embedding <=> $1
+        LIMIT $2
+      `,
+      [pgvector.toSql(embedding), limit],
+    );
+
+    return result.rows.map((row) => ({
+      slug: row.slug,
+      title: row.title,
+      score: Number(row.score),
+    }));
+  }
+
+  async upsertSource(source: SourceRecordInput): Promise<SourceRecord> {
+    const result = await this.pool.query<SourceRecordRow>(
+      `
+        INSERT INTO sources (
+          url,
+          format,
+          content_hash,
+          page_slugs,
+          fetched_at,
+          updated_at
+        ) VALUES ($1, $2, $3, $4::text[], now(), now())
+        ON CONFLICT (url) DO UPDATE SET
+          format = EXCLUDED.format,
+          content_hash = EXCLUDED.content_hash,
+          page_slugs = EXCLUDED.page_slugs,
+          fetched_at = now(),
+          updated_at = now()
+        RETURNING
+          url,
+          format,
+          content_hash AS "contentHash",
+          page_slugs AS "pageSlugs",
+          fetched_at AS "fetchedAt",
+          updated_at AS "updatedAt"
+      `,
+      [source.url, source.format, source.contentHash, uniqueStrings(source.pageSlugs)],
+    );
+
+    return sourceRecordFromRow(result.rows[0]!);
+  }
+
+  async checkSourceExists(url: string): Promise<SourceRecord | null> {
+    const result = await this.pool.query<SourceRecordRow>(
+      `
+        SELECT
+          url,
+          format,
+          content_hash AS "contentHash",
+          page_slugs AS "pageSlugs",
+          fetched_at AS "fetchedAt",
+          updated_at AS "updatedAt"
+        FROM sources
+        WHERE url = $1
+      `,
+      [url],
+    );
+
+    const row = result.rows[0];
+    return row ? sourceRecordFromRow(row) : null;
+  }
+
+  async upsertEntityEmbedding(slug: string, embedding: number[]): Promise<void> {
+    await this.pool.query(
+      `
+        INSERT INTO entity_embeddings (slug, embedding)
+        VALUES ($1, $2)
+        ON CONFLICT (slug) DO UPDATE SET
+          embedding = EXCLUDED.embedding
+      `,
+      [slug, pgvector.toSql(embedding)],
+    );
+  }
+
+  async checkDomainQuota(domain: string, date: string): Promise<number> {
+    const result = await this.pool.query<{ count: number }>(
+      `
+        SELECT count
+        FROM domain_quotas
+        WHERE domain = $1 AND date = $2::date
+      `,
+      [domain, date],
+    );
+
+    return result.rows[0]?.count ?? 0;
+  }
+
+  async incrementDomainQuota(domain: string, date: string): Promise<number> {
+    const result = await this.pool.query<{ count: number }>(
+      `
+        INSERT INTO domain_quotas (domain, date, count)
+        VALUES ($1, $2::date, 1)
+        ON CONFLICT (domain, date) DO UPDATE SET
+          count = domain_quotas.count + 1
+        RETURNING count
+      `,
+      [domain, date],
+    );
+
+    return result.rows[0]?.count ?? 0;
+  }
+
+  async queuePendingIngest(
+    url: string,
+    format: SourceFormat | null,
+  ): Promise<PendingIngestRecord> {
+    const existing = await this.pool.query<PendingIngestRow>(
+      `
+        SELECT
+          id,
+          url,
+          format,
+          queued_at AS "queuedAt",
+          status,
+          error
+        FROM pending_ingests
+        WHERE url = $1 AND status = 'pending'
+        ORDER BY queued_at ASC
+        LIMIT 1
+      `,
+      [url],
+    );
+
+    if (existing.rows[0]) {
+      return pendingIngestFromRow(existing.rows[0]);
+    }
+
+    const result = await this.pool.query<PendingIngestRow>(
+      `
+        INSERT INTO pending_ingests (url, format, status)
+        VALUES ($1, $2, 'pending')
+        RETURNING
+          id,
+          url,
+          format,
+          queued_at AS "queuedAt",
+          status,
+          error
+      `,
+      [url, format],
+    );
+
+    return pendingIngestFromRow(result.rows[0]!);
+  }
+
+  async getPendingIngests(limit = 50): Promise<PendingIngestRecord[]> {
+    const result = await this.pool.query<PendingIngestRow>(
+      `
+        SELECT
+          id,
+          url,
+          format,
+          queued_at AS "queuedAt",
+          status,
+          error
+        FROM pending_ingests
+        WHERE status = 'pending'
+        ORDER BY queued_at ASC
+        LIMIT $1
+      `,
+      [limit],
+    );
+
+    return result.rows.map(pendingIngestFromRow);
+  }
+
+  async markIngestComplete(
+    id: number,
+    status: string,
+    error?: string | null,
+  ): Promise<void> {
+    await this.pool.query(
+      `
+        UPDATE pending_ingests
+        SET status = $2, error = $3
+        WHERE id = $1
+      `,
+      [id, status, error ?? null],
+    );
+  }
+
+  async withSourceLock<T>(
+    url: string,
+    callback: (store: CompilerStore) => Promise<T>,
+  ): Promise<T> {
+    const client = await this.pool.connect();
+
+    try {
+      await tryRegisterVectorTypes(client);
+      await client.query("BEGIN");
+      await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [url]);
+      const result = await callback(new LockedCompilerStore(client));
+      await client.query("COMMIT");
+      return result;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async findBestPageMatch(
@@ -524,6 +761,255 @@ class PgIndexerTransaction implements IndexerTransaction {
   }
 }
 
+class LockedCompilerStore implements CompilerStore {
+  constructor(private readonly client: PoolClient) {}
+
+  async getPageBySlug(slug: string): Promise<PageRecord | null> {
+    return getPageBySlugFrom(this.client, slug);
+  }
+
+  async findBestTitleMatch(
+    input: string,
+    threshold: number,
+  ): Promise<PageRecord | null> {
+    const result = await this.client.query<PageRecordRow>(
+      `
+        SELECT *
+        FROM (
+          SELECT
+            p.slug,
+            p.title,
+            p.content,
+            p.frontmatter,
+            p.freshness,
+            p.confidence,
+            p.created_at AS "createdAt",
+            p.updated_at AS "updatedAt",
+            COALESCE(array_agg(DISTINCT t.tag) FILTER (WHERE t.tag IS NOT NULL), '{}') AS tags,
+            COALESCE(
+              array_agg(DISTINCT l.target_slug) FILTER (WHERE l.target_slug IS NOT NULL),
+              '{}'
+            ) AS "outgoingLinks",
+            similarity(p.title, $1) AS match_score
+          FROM pages p
+          LEFT JOIN tags t ON t.page_id = p.id
+          LEFT JOIN links l ON l.source_page_id = p.id
+          GROUP BY p.id
+        ) ranked
+        WHERE ranked.match_score >= $2
+        ORDER BY ranked.match_score DESC, ranked.updatedAt DESC
+        LIMIT 1
+      `,
+      [input, threshold],
+    );
+
+    const row = result.rows[0];
+    return row ? pageRecordFromRow(row) : null;
+  }
+
+  async searchEntityEmbeddings(
+    embedding: number[],
+    limit: number,
+  ): Promise<EntityEmbeddingMatch[]> {
+    const result = await this.client.query<EmbeddingMatchRow>(
+      `
+        SELECT
+          p.slug,
+          p.title,
+          1 - (e.embedding <=> $1) AS score
+        FROM entity_embeddings e
+        JOIN pages p ON p.slug = e.slug
+        ORDER BY e.embedding <=> $1
+        LIMIT $2
+      `,
+      [pgvector.toSql(embedding), limit],
+    );
+
+    return result.rows.map((row) => ({
+      slug: row.slug,
+      title: row.title,
+      score: Number(row.score),
+    }));
+  }
+
+  async upsertSource(source: SourceRecordInput): Promise<SourceRecord> {
+    const result = await this.client.query<SourceRecordRow>(
+      `
+        INSERT INTO sources (
+          url,
+          format,
+          content_hash,
+          page_slugs,
+          fetched_at,
+          updated_at
+        ) VALUES ($1, $2, $3, $4::text[], now(), now())
+        ON CONFLICT (url) DO UPDATE SET
+          format = EXCLUDED.format,
+          content_hash = EXCLUDED.content_hash,
+          page_slugs = EXCLUDED.page_slugs,
+          fetched_at = now(),
+          updated_at = now()
+        RETURNING
+          url,
+          format,
+          content_hash AS "contentHash",
+          page_slugs AS "pageSlugs",
+          fetched_at AS "fetchedAt",
+          updated_at AS "updatedAt"
+      `,
+      [source.url, source.format, source.contentHash, uniqueStrings(source.pageSlugs)],
+    );
+
+    return sourceRecordFromRow(result.rows[0]!);
+  }
+
+  async checkSourceExists(url: string): Promise<SourceRecord | null> {
+    const result = await this.client.query<SourceRecordRow>(
+      `
+        SELECT
+          url,
+          format,
+          content_hash AS "contentHash",
+          page_slugs AS "pageSlugs",
+          fetched_at AS "fetchedAt",
+          updated_at AS "updatedAt"
+        FROM sources
+        WHERE url = $1
+      `,
+      [url],
+    );
+
+    const row = result.rows[0];
+    return row ? sourceRecordFromRow(row) : null;
+  }
+
+  async upsertEntityEmbedding(slug: string, embedding: number[]): Promise<void> {
+    await this.client.query(
+      `
+        INSERT INTO entity_embeddings (slug, embedding)
+        VALUES ($1, $2)
+        ON CONFLICT (slug) DO UPDATE SET
+          embedding = EXCLUDED.embedding
+      `,
+      [slug, pgvector.toSql(embedding)],
+    );
+  }
+
+  async checkDomainQuota(domain: string, date: string): Promise<number> {
+    const result = await this.client.query<{ count: number }>(
+      `
+        SELECT count
+        FROM domain_quotas
+        WHERE domain = $1 AND date = $2::date
+      `,
+      [domain, date],
+    );
+
+    return result.rows[0]?.count ?? 0;
+  }
+
+  async incrementDomainQuota(domain: string, date: string): Promise<number> {
+    const result = await this.client.query<{ count: number }>(
+      `
+        INSERT INTO domain_quotas (domain, date, count)
+        VALUES ($1, $2::date, 1)
+        ON CONFLICT (domain, date) DO UPDATE SET
+          count = domain_quotas.count + 1
+        RETURNING count
+      `,
+      [domain, date],
+    );
+
+    return result.rows[0]?.count ?? 0;
+  }
+
+  async queuePendingIngest(
+    url: string,
+    format: SourceFormat | null,
+  ): Promise<PendingIngestRecord> {
+    const existing = await this.client.query<PendingIngestRow>(
+      `
+        SELECT
+          id,
+          url,
+          format,
+          queued_at AS "queuedAt",
+          status,
+          error
+        FROM pending_ingests
+        WHERE url = $1 AND status = 'pending'
+        ORDER BY queued_at ASC
+        LIMIT 1
+      `,
+      [url],
+    );
+
+    if (existing.rows[0]) {
+      return pendingIngestFromRow(existing.rows[0]);
+    }
+
+    const result = await this.client.query<PendingIngestRow>(
+      `
+        INSERT INTO pending_ingests (url, format, status)
+        VALUES ($1, $2, 'pending')
+        RETURNING
+          id,
+          url,
+          format,
+          queued_at AS "queuedAt",
+          status,
+          error
+      `,
+      [url, format],
+    );
+
+    return pendingIngestFromRow(result.rows[0]!);
+  }
+
+  async getPendingIngests(limit = 50): Promise<PendingIngestRecord[]> {
+    const result = await this.client.query<PendingIngestRow>(
+      `
+        SELECT
+          id,
+          url,
+          format,
+          queued_at AS "queuedAt",
+          status,
+          error
+        FROM pending_ingests
+        WHERE status = 'pending'
+        ORDER BY queued_at ASC
+        LIMIT $1
+      `,
+      [limit],
+    );
+
+    return result.rows.map(pendingIngestFromRow);
+  }
+
+  async markIngestComplete(
+    id: number,
+    status: string,
+    error?: string | null,
+  ): Promise<void> {
+    await this.client.query(
+      `
+        UPDATE pending_ingests
+        SET status = $2, error = $3
+        WHERE id = $1
+      `,
+      [id, status, error ?? null],
+    );
+  }
+
+  async withSourceLock<T>(
+    _url: string,
+    callback: (store: CompilerStore) => Promise<T>,
+  ): Promise<T> {
+    return callback(this);
+  }
+}
+
 type KeywordRow = {
   chunkId: number;
   pageId: number;
@@ -535,6 +1021,12 @@ type KeywordRow = {
 };
 
 type VectorRow = KeywordRow;
+
+type EmbeddingMatchRow = {
+  slug: string;
+  title: string;
+  score: number | string;
+};
 
 type PageRecordRow = {
   slug: string;
@@ -549,7 +1041,58 @@ type PageRecordRow = {
   updatedAt: string | Date;
 };
 
+type SourceRecordRow = {
+  url: string;
+  format: SourceFormat;
+  contentHash: string;
+  pageSlugs: string[] | null;
+  fetchedAt: string | Date;
+  updatedAt: string | Date;
+};
+
+type PendingIngestRow = {
+  id: number;
+  url: string;
+  format: SourceFormat | null;
+  queuedAt: string | Date;
+  status: string;
+  error: string | null;
+};
+
 type StatusRow = StatusSnapshot;
+
+async function getPageBySlugFrom(
+  queryable: Queryable,
+  slug: string,
+): Promise<PageRecord | null> {
+  const result = await queryable.query<PageRecordRow>(
+    `
+      SELECT
+        p.slug,
+        p.title,
+        p.content,
+        p.frontmatter,
+        p.freshness,
+        p.confidence,
+        p.created_at AS "createdAt",
+        p.updated_at AS "updatedAt",
+        COALESCE(array_agg(DISTINCT t.tag) FILTER (WHERE t.tag IS NOT NULL), '{}') AS tags,
+        COALESCE(
+          array_agg(DISTINCT l.target_slug) FILTER (WHERE l.target_slug IS NOT NULL),
+          '{}'
+        ) AS "outgoingLinks"
+      FROM pages p
+      LEFT JOIN tags t ON t.page_id = p.id
+      LEFT JOIN links l ON l.source_page_id = p.id
+      WHERE p.slug = $1
+      GROUP BY p.id
+    `,
+    [slug],
+  );
+
+  const row = result.rows[0];
+  return row ? pageRecordFromRow(row) : null;
+}
 
 function pageRecordFromRow(row: PageRecordRow): PageRecord {
   return {
@@ -563,6 +1106,28 @@ function pageRecordFromRow(row: PageRecordRow): PageRecord {
     outgoingLinks: uniqueStrings(row.outgoingLinks ?? []),
     createdAt: toIsoString(row.createdAt),
     updatedAt: toIsoString(row.updatedAt),
+  };
+}
+
+function sourceRecordFromRow(row: SourceRecordRow): SourceRecord {
+  return {
+    url: row.url,
+    format: row.format,
+    contentHash: row.contentHash,
+    pageSlugs: uniqueStrings(row.pageSlugs ?? []),
+    fetchedAt: toIsoString(row.fetchedAt),
+    updatedAt: toIsoString(row.updatedAt),
+  };
+}
+
+function pendingIngestFromRow(row: PendingIngestRow): PendingIngestRecord {
+  return {
+    id: row.id,
+    url: row.url,
+    format: row.format,
+    queuedAt: toIsoString(row.queuedAt),
+    status: row.status,
+    error: row.error,
   };
 }
 

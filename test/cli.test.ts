@@ -95,6 +95,15 @@ function createFakeRuntime(onClose: () => void): CliRuntime {
     searchEngine: {
       hybridSearch: async () => searchResults,
     } as unknown as CliRuntime["searchEngine"],
+    compiler: {
+      ingest: async () => ({
+        status: "dry-run",
+        url: "https://example.com/post",
+        format: "article",
+        pageSlugs: ["knowledge-distillery"],
+      }),
+      drain: async () => [],
+    } as unknown as CliRuntime["compiler"],
     startServer: async () => undefined,
   };
 }

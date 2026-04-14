@@ -5,10 +5,13 @@ import path from "node:path";
 import { recursiveChunkMarkdown } from "../src/core/indexer";
 import type {
   AppConfig,
+  CompilerStore,
   EmbeddingProvider,
+  EntityEmbeddingMatch,
   IndexedChunk,
   IndexerStore,
   IndexerTransaction,
+  PendingIngestRecord,
   PageEmbeddingRecord,
   PageRecord,
   PageSnapshot,
@@ -17,6 +20,9 @@ import type {
   QueryLogEntry,
   SearchCandidate,
   SearchStore,
+  SourceRecord,
+  SourceRecordInput,
+  SourceFormat,
   StatusSnapshot,
   StatusStore,
   ToolStore,
@@ -46,6 +52,7 @@ export async function createFixtureWorkspace(): Promise<{
     compiledDir,
   );
   await copyDirectory(path.resolve(process.cwd(), "test/fixtures/raw"), rawDir);
+  await createBrainSchemaDirs(compiledDir);
 
   return { rootDir, compiledDir, rawDir };
 }
@@ -93,10 +100,15 @@ export class StaticExpansionProvider implements QueryExpansionProvider {
 }
 
 export class InMemoryWikiStore
-  implements IndexerStore, SearchStore, ToolStore, StatusStore
+  implements IndexerStore, SearchStore, ToolStore, StatusStore, CompilerStore
 {
   private pages = new Map<string, StoredPage>();
+  private sources = new Map<string, SourceRecord>();
+  private entityEmbeddings = new Map<string, number[]>();
+  private domainQuotas = new Map<string, number>();
+  private pendingIngests = new Map<number, PendingIngestRecord>();
   private nextId = 1;
+  private nextPendingId = 1;
   readonly queryLog: QueryLogEntry[] = [];
 
   async getPageSnapshot(slug: string): Promise<PageSnapshot | null> {
@@ -219,6 +231,44 @@ export class InMemoryWikiStore
     return page ? toPageRecord(page) : null;
   }
 
+  async findBestTitleMatch(input: string, threshold: number): Promise<PageRecord | null> {
+    const normalized = input.toLowerCase();
+    let best: StoredPage | null = null;
+    let bestScore = 0;
+
+    for (const page of this.pages.values()) {
+      const score = stringSimilarity(normalized, page.title.toLowerCase());
+      if (score > bestScore) {
+        best = page;
+        bestScore = score;
+      }
+    }
+
+    return best && bestScore >= threshold ? toPageRecord(best) : null;
+  }
+
+  async searchEntityEmbeddings(
+    embedding: number[],
+    limit: number,
+  ): Promise<EntityEmbeddingMatch[]> {
+    const matches: EntityEmbeddingMatch[] = [];
+
+    for (const [slug, vector] of this.entityEmbeddings.entries()) {
+      const page = this.pages.get(slug);
+      if (!page) {
+        continue;
+      }
+
+      matches.push({
+        slug,
+        title: page.title,
+        score: cosineSimilarity(embedding, vector),
+      });
+    }
+
+    return matches.sort((left, right) => right.score - left.score).slice(0, limit);
+  }
+
   async findBestPageMatch(input: string, threshold: number): Promise<PageRecord | null> {
     const normalized = input.toLowerCase();
     let best: StoredPage | null = null;
@@ -236,6 +286,98 @@ export class InMemoryWikiStore
     }
 
     return best && bestScore >= threshold ? toPageRecord(best) : null;
+  }
+
+  async upsertSource(source: SourceRecordInput): Promise<SourceRecord> {
+    const timestamp = new Date().toISOString();
+    const existing = this.sources.get(source.url);
+    const record: SourceRecord = {
+      url: source.url,
+      format: source.format,
+      contentHash: source.contentHash,
+      pageSlugs: Array.from(new Set(source.pageSlugs)),
+      fetchedAt: timestamp,
+      updatedAt: timestamp,
+    };
+
+    this.sources.set(source.url, {
+      ...record,
+      fetchedAt: existing?.fetchedAt ?? record.fetchedAt,
+    });
+
+    return this.sources.get(source.url)!;
+  }
+
+  async checkSourceExists(url: string): Promise<SourceRecord | null> {
+    return this.sources.get(url) ?? null;
+  }
+
+  async upsertEntityEmbedding(slug: string, embedding: number[]): Promise<void> {
+    this.entityEmbeddings.set(slug, [...embedding]);
+  }
+
+  async checkDomainQuota(domain: string, date: string): Promise<number> {
+    return this.domainQuotas.get(`${domain}:${date}`) ?? 0;
+  }
+
+  async incrementDomainQuota(domain: string, date: string): Promise<number> {
+    const key = `${domain}:${date}`;
+    const nextValue = (this.domainQuotas.get(key) ?? 0) + 1;
+    this.domainQuotas.set(key, nextValue);
+    return nextValue;
+  }
+
+  async queuePendingIngest(
+    url: string,
+    format: SourceFormat | null,
+  ): Promise<PendingIngestRecord> {
+    for (const pending of this.pendingIngests.values()) {
+      if (pending.url === url && pending.status === "pending") {
+        return pending;
+      }
+    }
+
+    const record: PendingIngestRecord = {
+      id: this.nextPendingId++,
+      url,
+      format,
+      queuedAt: new Date().toISOString(),
+      status: "pending",
+      error: null,
+    };
+    this.pendingIngests.set(record.id, record);
+    return record;
+  }
+
+  async getPendingIngests(limit = 50): Promise<PendingIngestRecord[]> {
+    return Array.from(this.pendingIngests.values())
+      .filter((record) => record.status === "pending")
+      .sort((left, right) => left.queuedAt.localeCompare(right.queuedAt))
+      .slice(0, limit);
+  }
+
+  async markIngestComplete(
+    id: number,
+    status: string,
+    error?: string | null,
+  ): Promise<void> {
+    const pending = this.pendingIngests.get(id);
+    if (!pending) {
+      return;
+    }
+
+    this.pendingIngests.set(id, {
+      ...pending,
+      status,
+      error: error ?? null,
+    });
+  }
+
+  async withSourceLock<T>(
+    _url: string,
+    callback: (store: CompilerStore) => Promise<T>,
+  ): Promise<T> {
+    return callback(this);
   }
 
   async getOutgoingLinks(slug: string): Promise<string[]> {
@@ -465,5 +607,29 @@ async function copyDirectory(sourceDir: string, targetDir: string): Promise<void
     }
 
     await fs.copyFile(sourcePath, targetPath);
+  }
+}
+
+async function createBrainSchemaDirs(compiledDir: string): Promise<void> {
+  const directories = [
+    {
+      name: "people",
+      readme:
+        "People pages hold biographies and durable notes on named individuals.",
+    },
+    {
+      name: "concepts",
+      readme: "Concept pages hold ideas, frameworks, and reusable abstractions.",
+    },
+    {
+      name: "sources",
+      readme: "Source pages hold provenance for ingested URLs.",
+    },
+  ];
+
+  for (const directory of directories) {
+    const dirPath = path.join(compiledDir, directory.name);
+    await fs.mkdir(dirPath, { recursive: true });
+    await fs.writeFile(path.join(dirPath, "README.md"), `${directory.readme}\n`, "utf8");
   }
 }

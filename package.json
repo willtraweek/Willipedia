@@ -1,12 +1,14 @@
 {
-  "name": "lyon-personal-wiki-mcp",
+  "name": "willipedia-mcp",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "bin": {
+    "willipedia": "./src/cli.ts",
     "wiki": "./src/cli.ts"
   },
   "scripts": {
+    "brain": "bun run src/cli.ts brain",
     "migrate": "bun run src/cli.ts migrate",
     "sync": "bun run src/cli.ts sync",
     "search": "bun run src/cli.ts search",
@@ -16,16 +18,20 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@mozilla/readability": "^0.6.0",
     "@anthropic-ai/sdk": "^0.88.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "gray-matter": "^4.0.3",
+    "jsdom": "^27.0.1",
     "openai": "^6.34.0",
     "pg": "^8.20.0",
     "pgvector": "^0.2.1",
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@types/jsdom": "^27.0.0",
     "@types/node": "^25.6.0",
+    "@types/pg": "^8.15.6",
     "bun-types": "^1.3.12",
     "typescript": "^6.0.2"
   }
