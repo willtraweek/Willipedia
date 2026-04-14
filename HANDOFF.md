@@ -9,7 +9,7 @@ This repo ships a compiler-first knowledge pipeline:
 The MCP service identity is:
 
 - name: `willipedia`
-- version: `0.1.0`
+- version: `0.1.1`
 
 There is no HTTP server. Integration is stdio-only MCP.
 

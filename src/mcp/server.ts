@@ -6,7 +6,7 @@ import { registerWikiTools, type WikiToolDependencies } from "./tools";
 export async function startMcpServer(deps: WikiToolDependencies): Promise<McpServer> {
   const server = new McpServer({
     name: "willipedia",
-    version: "0.1.0",
+    version: "0.1.1",
   });
 
   registerWikiTools(server, deps);

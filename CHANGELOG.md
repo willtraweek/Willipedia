@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.1] - 2026-04-14
+
+### Changed
+- Renamed the supported CLI surface from `wiki` to `willipedia` across the runtime usage output and project documentation
+- Updated compiler fetch user-agent strings and the README lead so the product name is internally consistent
+
+### Fixed
+- Removed the stale `wiki` binary alias from `package.json`, leaving a single supported `willipedia` executable
+- Added CLI coverage for the usage/help output so future command-name regressions fail in test
+
+### Removed
+- Deleted the default Obsidian `Welcome.md` starter note from the repo root
+
 ## [0.1.0] - 2026-04-13
 
 ### Added
