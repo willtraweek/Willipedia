@@ -1,11 +1,10 @@
 {
   "name": "willipedia-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "bin": {
-    "willipedia": "./src/cli.ts",
-    "wiki": "./src/cli.ts"
+    "willipedia": "./src/cli.ts"
   },
   "scripts": {
     "brain": "bun run src/cli.ts brain",

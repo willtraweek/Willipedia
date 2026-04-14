@@ -219,15 +219,15 @@ function renderStatus(snapshot: StatusSnapshot): string {
 function usage(): string {
   return [
     "Usage:",
-    "  wiki brain schema",
-    "  wiki brain ingest <url> [--refresh] [--dry-run]",
-    "  wiki brain ingest --batch <file> [--refresh] [--dry-run]",
-    "  wiki brain drain [--limit=20]",
-    "  wiki migrate",
-    "  wiki sync",
-    "  wiki search <query>",
-    "  wiki serve",
-    "  wiki status",
+    "  willipedia brain schema",
+    "  willipedia brain ingest <url> [--refresh] [--dry-run]",
+    "  willipedia brain ingest --batch <file> [--refresh] [--dry-run]",
+    "  willipedia brain drain [--limit=20]",
+    "  willipedia migrate",
+    "  willipedia sync",
+    "  willipedia search <query>",
+    "  willipedia serve",
+    "  willipedia status",
   ].join("\n");
 }
 

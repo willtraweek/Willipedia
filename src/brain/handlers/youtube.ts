@@ -37,7 +37,7 @@ export class YouTubeSourceHandler {
     try {
       watchResponse = await this.fetchImpl(watchUrl, {
         headers: {
-          "user-agent": "willipedia/0.1 (wiki compiler)",
+          "user-agent": "willipedia/0.1 (willipedia compiler)",
           accept: "text/html",
         },
         signal: controller.signal,

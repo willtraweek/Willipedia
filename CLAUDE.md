@@ -14,7 +14,7 @@ bun run src/cli.ts brain ingest https://example.com/post
 bun run src/cli.ts brain drain --limit=10
 ```
 
-`wiki brain schema` is the only command that does not construct the runtime.
+`willipedia brain schema` is the only command that does not construct the runtime.
 Everything else goes through `loadConfig()` and requires `DATABASE_URL` plus `OPENAI_API_KEY`.
 
 ## Repo Map
@@ -42,10 +42,10 @@ test/
 
 - Treat `Clippings/*/README.md` as compiler routing schema. They are not content pages, and the indexer intentionally skips them.
 - The compiler supports `article` and `youtube` sources only.
-- `wiki brain ingest` and `wiki brain drain` already run migrations and reindex after they finish. `wiki sync` is mainly for manual edits or external writers touching `COMPILED_PATH`.
+- `willipedia brain ingest` and `willipedia brain drain` already run migrations and reindex after they finish. `willipedia sync` is mainly for manual edits or external writers touching `COMPILED_PATH`.
 - Existing entity pages are not body-overwritten during ingest. The compiler only appends new provenance URLs to `sources:` frontmatter and writes a separate page under `Clippings/sources/`.
 - `RAW_PATH` is only used by the MCP `get_source` tool. The compiler does not persist fetched raw payloads there today.
-- Domain throttling lives in `rate-limits.json`. When a domain exceeds quota, the compiler records a row in `pending_ingests` for later `wiki brain drain`.
+- Domain throttling lives in `rate-limits.json`. When a domain exceeds quota, the compiler records a row in `pending_ingests` for later `willipedia brain drain`.
 - `ANTHROPIC_API_KEY` is optional. Missing Anthropic falls back to heuristics for compiler output and to non-expanded/recursive retrieval behavior.
 
 ## MCP Surface

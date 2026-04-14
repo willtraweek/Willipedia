@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.1] - 2026-04-14
+
+### Changed
+- Use the `willipedia` command consistently throughout the CLI help text and project documentation
+- See the `willipedia` name reflected consistently in compiler fetch metadata and the README introduction
+
+### Fixed
+- Installing or linking the package now exposes only the supported `willipedia` executable
+
+### For contributors
+- The CLI test suite now checks the missing-command help output so command-name regressions fail fast
+
+### Removed
+- Deleted the default Obsidian `Welcome.md` starter note from the repo root
+
 ## [0.1.0] - 2026-04-13
 
 ### Added

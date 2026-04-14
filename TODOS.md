@@ -2,7 +2,7 @@
 
 ## P1: Tweet/X handler for brain ingest
 
-**What:** Add a dedicated short-form social handler for Tweet/X URLs so `wiki brain ingest` can compile threads without pretending they are generic articles.
+**What:** Add a dedicated short-form social handler for Tweet/X URLs so `willipedia brain ingest` can compile threads without pretending they are generic articles.
 
 **Why:** Social posts have different structure, provenance, and rate-limit constraints than articles or YouTube transcripts. The compiler should not lose thread boundaries or quoted-post context.
 
@@ -26,7 +26,7 @@
 
 **Cons:** Needs UX design for previewing category changes and possibly re-compiling affected pages.
 
-**Context:** `wiki brain schema` currently reads the filesystem and reports categories, but it does not help evolve them.
+**Context:** `willipedia brain schema` currently reads the filesystem and reports categories, but it does not help evolve them.
 
 **Effort:** M (human) → S with CC | **Priority:** P2 | **Depends on:** real-world compiler usage | **Added:** 2026-04-13 (eng plan execution)
 
@@ -34,15 +34,15 @@
 
 ## P2: Automated sync (file watcher)
 
-**What:** Add file watching to trigger indexing when compiled wiki pages under `COMPILED_PATH` change, instead of manual `wiki sync`.
+**What:** Add file watching to trigger indexing when compiled wiki pages under `COMPILED_PATH` change, instead of manual `willipedia sync`.
 
-**Why:** Manual sync means the index goes stale after manual edits or external writers. Agents could get outdated results. Completing the "flywheel" story (compile -> index -> search) requires automated sync for anything that bypasses `wiki brain ingest`.
+**Why:** Manual sync means the index goes stale after manual edits or external writers. Agents could get outdated results. Completing the "flywheel" story (compile -> index -> search) requires automated sync for anything that bypasses `willipedia brain ingest`.
 
 **Pros:** Index always reflects current compiled wiki state. No manual step between edits and retrieval.
 
 **Cons:** Adds fs.watch complexity, need to debounce rapid changes, handle partial writes, and avoid duplicate work when the compiler already reindexed.
 
-**Context:** `wiki brain ingest` and `wiki brain drain` already reindex automatically. This follow-up is mainly for manual wiki edits and non-compiler writers. Consider using chokidar or Bun's built-in file watcher with a 2-3 second debounce after the last change.
+**Context:** `willipedia brain ingest` and `willipedia brain drain` already reindex automatically. This follow-up is mainly for manual wiki edits and non-compiler writers. Consider using chokidar or Bun's built-in file watcher with a 2-3 second debounce after the last change.
 
 **Effort:** M (human) → S with CC | **Priority:** P2 | **Depends on:** v0 indexer working | **Added:** 2026-04-11 (CEO review)
 
@@ -98,7 +98,7 @@
 
 ## P3: Retrieval quality metrics / eval framework
 
-**What:** Add metrics beyond latency: citation correctness, zero-result rate, false-positive rate. Possibly a `wiki eval` CLI command.
+**What:** Add metrics beyond latency: citation correctness, zero-result rate, false-positive rate. Possibly a `willipedia eval` CLI command.
 
 **Why:** Codex (outside voice) correctly pointed out that <500ms for 100 pages is trivial. The hard question is whether search results are actually useful to agents.
 
@@ -106,6 +106,6 @@
 
 **Cons:** Hard to fully automate. Needs either a set of test queries with expected results, or manual spot-checking.
 
-**Context:** Could start simple: a `wiki eval` command that runs 10 test queries against fixtures, checks that expected pages appear in top-3 results. Graduate to LLM-judged relevance scoring later.
+**Context:** Could start simple: a `willipedia eval` command that runs 10 test queries against fixtures, checks that expected pages appear in top-3 results. Graduate to LLM-judged relevance scoring later.
 
 **Effort:** M (human) → S with CC | **Priority:** P3 | **Depends on:** v0 + real content indexed | **Added:** 2026-04-11 (CEO review)
