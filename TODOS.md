@@ -64,6 +64,38 @@
 
 ---
 
+## P2: Website for viewing compiled docs
+
+**What:** Build a web frontend for browsing compiled wiki pages, with navigation, search, and cross-reference links rendered as clickable routes.
+
+**Why:** The compiled markdown pages are currently only accessible through MCP tools or reading files on disk. A browsable website makes the wiki useful for humans, not just agents.
+
+**Pros:** Makes the wiki a real product you can share and browse. Surfaces the MECE structure and cross-references visually. Could use Quartz, Astro, or a custom viewer.
+
+**Cons:** Needs design decisions on static vs. dynamic, hosting, and how tightly to integrate with the existing search/indexer layer.
+
+**Context:** The pipeline already produces clean markdown+frontmatter that static site generators consume. Quartz was mentioned in the original architecture. Flesh out the approach: static build from compiled/, or dynamic server reading from Postgres?
+
+**Effort:** M (human) → S with CC | **Priority:** P2 | **Depends on:** brain compiler producing real content | **Added:** 2026-04-13
+
+---
+
+## P2: Investigate GBrain 0.8.0 voice mode
+
+**What:** Look at GBrain 0.8.0's voice mode (https://github.com/garrytan/gbrain/blob/master/CHANGELOG.md) and decide whether to port voice capabilities into Willipedia or into ai-orchestration.
+
+**Why:** Voice input could be a powerful ingest path — dictate notes, narrate observations, and have them compiled into wiki pages. But the right home for this might be ai-orchestration (as an agent skill) rather than the wiki compiler itself.
+
+**Pros:** Natural capture method for ideas on the go. GBrain already solved the hard parts (transcription, structuring).
+
+**Cons:** Voice is an input modality, not a compilation concern. May belong in ai-orchestration as a skill that calls `brain ingest` with transcribed content. Need to avoid scope creep in this repo.
+
+**Context:** GBrain is the upstream reference architecture. Voice mode landed in 0.8.0. Evaluate: what did they build, what's reusable, and does it fit better as a Willipedia feature or an ai-orchestration agent capability?
+
+**Effort:** S (research) → S with CC | **Priority:** P2 | **Depends on:** brain compiler stable | **Added:** 2026-04-13
+
+---
+
 ## P3: Retrieval quality metrics / eval framework
 
 **What:** Add metrics beyond latency: citation correctness, zero-result rate, false-positive rate. Possibly a `wiki eval` CLI command.
