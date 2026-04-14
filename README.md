@@ -1,14 +1,12 @@
 # Willipedia
 
-`willipedia-mcp` turns source URLs and existing wiki pages into an agent-searchable knowledge base.
-
-The CLI is exposed as both `willipedia` and `wiki`; the examples below use `wiki`.
+`Willipedia` turns source URLs and existing wiki pages into an agent-searchable knowledge base.
 
 It does three jobs:
 
-- `wiki brain ...` compiles source URLs into durable markdown pages under `Clippings/`
-- `wiki sync`, `wiki search`, and `wiki status` maintain and inspect the Postgres retrieval index
-- `wiki serve` exposes the indexed wiki to agents over MCP stdio
+- `willipedia brain ...` compiles source URLs into durable markdown pages under `Clippings/`
+- `willipedia sync`, `willipedia search`, and `willipedia status` maintain and inspect the Postgres retrieval index
+- `willipedia serve` exposes the indexed wiki to agents over MCP stdio
 
 ## Quickstart
 
@@ -23,7 +21,7 @@ bun run src/cli.ts brain ingest https://example.com/post
 bun run serve
 ```
 
-`DATABASE_URL` and `OPENAI_API_KEY` are required for every command except `wiki brain schema`.
+`DATABASE_URL` and `OPENAI_API_KEY` are required for every command except `willipedia brain schema`.
 
 `ANTHROPIC_API_KEY` is optional. Without it, the compiler falls back to heuristic entity extraction, routing, and page drafting; retrieval still works with recursive chunking and no query expansion.
 
@@ -31,23 +29,23 @@ bun run serve
 
 | Command | Purpose |
 | --- | --- |
-| `wiki brain schema` | Read category routing instructions from `Clippings/*/README.md` |
-| `wiki brain ingest <url>` | Fetch one source URL, compile wiki pages, and reindex |
-| `wiki brain ingest --batch <file>` | Ingest a newline-delimited URL batch with concurrency 3 |
-| `wiki brain drain [--limit=20]` | Process queued ingests that were deferred by domain quotas |
-| `wiki migrate` | Apply SQL migrations |
-| `wiki sync` | Reindex manual changes under `COMPILED_PATH` |
-| `wiki search <query>` | Run hybrid keyword + vector retrieval |
-| `wiki serve` | Start the MCP stdio server |
-| `wiki status` | Show page count, chunk count, stale pages, and embedding health |
+| `willipedia brain schema` | Read category routing instructions from `Clippings/*/README.md` |
+| `willipedia brain ingest <url>` | Fetch one source URL, compile wiki pages, and reindex |
+| `willipedia brain ingest --batch <file>` | Ingest a newline-delimited URL batch with concurrency 3 |
+| `willipedia brain drain [--limit=20]` | Process queued ingests that were deferred by domain quotas |
+| `willipedia migrate` | Apply SQL migrations |
+| `willipedia sync` | Reindex manual changes under `COMPILED_PATH` |
+| `willipedia search <query>` | Run hybrid keyword + vector retrieval |
+| `willipedia serve` | Start the MCP stdio server |
+| `willipedia status` | Show page count, chunk count, stale pages, and embedding health |
 
 ## Repo-Specific Assumptions
 
-- `.env.example` defaults `COMPILED_PATH` to `Clippings`
-- `RAW_PATH` defaults to `raw`, but the compiler does not populate that directory today
+- `.env.example` sets `COMPILED_PATH=Clippings` and `RAW_PATH=raw` for this repo
+- The compiler does not populate `RAW_PATH` today
 - `Clippings/people/README.md`, `Clippings/concepts/README.md`, and `Clippings/sources/README.md` are routing schema, not normal content pages
 - Supported source formats today are article HTML and YouTube videos with captions
-- `rate-limits.json` controls per-domain compiler throttling and powers `wiki brain drain`
+- `rate-limits.json` controls per-domain compiler throttling and powers `willipedia brain drain`
 
 ## Project Layout
 

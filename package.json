@@ -4,8 +4,7 @@
   "private": true,
   "type": "module",
   "bin": {
-    "willipedia": "./src/cli.ts",
-    "wiki": "./src/cli.ts"
+    "willipedia": "./src/cli.ts"
   },
   "scripts": {
     "brain": "bun run src/cli.ts brain",

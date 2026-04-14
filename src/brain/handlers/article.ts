@@ -18,7 +18,7 @@ export class ArticleSourceHandler {
     try {
       response = await this.fetchImpl(url, {
         headers: {
-          "user-agent": "willipedia/0.1 (wiki compiler)",
+          "user-agent": "willipedia/0.1 (willipedia compiler)",
           accept: "text/html,application/xhtml+xml",
         },
         signal: controller.signal,

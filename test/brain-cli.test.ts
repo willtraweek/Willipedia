@@ -49,6 +49,25 @@ describe("brain CLI", () => {
     expect(output[0]).toContain("people: People pages.");
   });
 
+  test("renders usage with willipedia command names", async () => {
+    const output: string[] = [];
+    const io: CliIo = {
+      info(message) {
+        output.push(message);
+      },
+      error(message) {
+        output.push(`ERR:${message}`);
+      },
+    };
+
+    await expect(runCli([], () => Promise.resolve(createFakeRuntime()), io)).rejects.toThrow(
+      "Missing command",
+    );
+
+    expect(output[0]).toContain("willipedia brain schema");
+    expect(output[0]).not.toContain("wiki brain schema");
+  });
+
   test("renders ingest and drain output", async () => {
     const output: string[] = [];
     const io: CliIo = {

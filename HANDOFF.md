@@ -2,9 +2,9 @@
 
 This repo ships a compiler-first knowledge pipeline:
 
-1. `wiki brain ingest` turns a URL into durable wiki pages under `Clippings/`
+1. `willipedia brain ingest` turns a URL into durable wiki pages under `Clippings/`
 2. compiler output is reindexed into Postgres with `pgvector` and `pg_trgm`
-3. `wiki serve` exposes the indexed wiki over MCP stdio
+3. `willipedia serve` exposes the indexed wiki over MCP stdio
 
 The MCP service identity is:
 
@@ -40,22 +40,22 @@ Repo defaults from `.env.example`:
 
 Operational caveat:
 
-- `wiki brain schema` is the only command that can run without DB/API config
+- `willipedia brain schema` is the only command that can run without DB/API config
 - every other command constructs the runtime and will fail fast without both `DATABASE_URL` and `OPENAI_API_KEY`
 
 ## Command Contract
 
 Supported CLI surface:
 
-- `wiki brain schema`
-- `wiki brain ingest <url> [--refresh] [--dry-run]`
-- `wiki brain ingest --batch <file> [--refresh] [--dry-run]`
-- `wiki brain drain [--limit=20]`
-- `wiki migrate`
-- `wiki sync`
-- `wiki search <query>`
-- `wiki serve`
-- `wiki status`
+- `willipedia brain schema`
+- `willipedia brain ingest <url> [--refresh] [--dry-run]`
+- `willipedia brain ingest --batch <file> [--refresh] [--dry-run]`
+- `willipedia brain drain [--limit=20]`
+- `willipedia migrate`
+- `willipedia sync`
+- `willipedia search <query>`
+- `willipedia serve`
+- `willipedia status`
 
 Behavior notes:
 
@@ -152,11 +152,11 @@ Important operational details:
 2. Inject `DATABASE_URL` and `OPENAI_API_KEY`.
 3. Set `COMPILED_PATH=Clippings` unless the wiki content moves.
 4. Optionally inject `ANTHROPIC_API_KEY`.
-5. Run `wiki migrate`.
-6. Run `wiki brain schema` once to confirm category routing.
-7. Run `wiki brain ingest <url>` or `wiki brain drain` to compile material.
-8. Run `wiki sync` only for manual edits or non-compiler writers.
-9. Launch `wiki serve` as the MCP subprocess.
+5. Run `willipedia migrate`.
+6. Run `willipedia brain schema` once to confirm category routing.
+7. Run `willipedia brain ingest <url>` or `willipedia brain drain` to compile material.
+8. Run `willipedia sync` only for manual edits or non-compiler writers.
+9. Launch `willipedia serve` as the MCP subprocess.
 
 ## Breakglass Files
 
