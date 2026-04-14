@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0] - 2026-04-13
+
+### Added
+- Brain compiler commands: `wiki brain schema`, `wiki brain ingest`, and `wiki brain drain`
+- Article and YouTube source handlers using Readability, JSDOM parsing, and transcript extraction
+- MECE routing from category `README.md` files under `Clippings/`
+- Compiler persistence tables for `sources`, `entity_embeddings`, `domain_quotas`, and `pending_ingests`
+- `rate-limits.json` support for per-domain ingest throttling and queued drain processing
+- Brain-focused test coverage for CLI, compiler, pipeline, handlers, quotas, and source helpers
+
+### Changed
+- The main workflow is now compile -> auto-reindex -> serve, instead of indexing only pre-written wiki pages
+- Compiler refreshes preserve existing page bodies and append provenance in `sources:` frontmatter
+- `.env.example` now points `COMPILED_PATH` at `Clippings`
+
+### Docs
+- Added a root `README.md`
+- Refreshed `CLAUDE.md` and `HANDOFF.md` for the compiler-first workflow
+- Synced repository version metadata to `0.1.0`
+
 ## [0.0.1.0] - 2026-04-12
 
 ### Added

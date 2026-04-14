@@ -1,16 +1,48 @@
 # TODOS
 
+## P1: Tweet/X handler for brain ingest
+
+**What:** Add a dedicated short-form social handler for Tweet/X URLs so `wiki brain ingest` can compile threads without pretending they are generic articles.
+
+**Why:** Social posts have different structure, provenance, and rate-limit constraints than articles or YouTube transcripts. The compiler should not lose thread boundaries or quoted-post context.
+
+**Pros:** Better extraction quality for a common source type. Cleaner routing into people/concepts/source pages.
+
+**Cons:** Needs provider-specific fetch logic and probably another queue/rate-limit entry in `rate-limits.json`.
+
+**Context:** The current compiler supports articles and YouTube only. This was explicitly left for the next pass in the compiler plan.
+
+**Effort:** M (human) → S with CC | **Priority:** P1 | **Depends on:** brain ingest v0 | **Added:** 2026-04-13 (eng plan execution)
+
+---
+
+## P2: MECE schema evolution tooling
+
+**What:** Add a workflow to audit, diff, and evolve category `README.md` routing rules as the wiki grows.
+
+**Why:** The compiler now treats directory READMEs as routing schema. Once the wiki diversifies beyond `people`, `concepts`, and `sources`, those rules need explicit tooling instead of ad hoc edits.
+
+**Pros:** Keeps routing intentional. Makes schema drift visible before it silently changes compilation output.
+
+**Cons:** Needs UX design for previewing category changes and possibly re-compiling affected pages.
+
+**Context:** `wiki brain schema` currently reads the filesystem and reports categories, but it does not help evolve them.
+
+**Effort:** M (human) → S with CC | **Priority:** P2 | **Depends on:** real-world compiler usage | **Added:** 2026-04-13 (eng plan execution)
+
+---
+
 ## P2: Automated sync (file watcher)
 
-**What:** Add file watching to trigger indexing when compiled/ pages change, instead of manual `wiki sync`.
+**What:** Add file watching to trigger indexing when compiled wiki pages under `COMPILED_PATH` change, instead of manual `wiki sync`.
 
-**Why:** Manual sync means the index goes stale between syncs. Agents could get outdated results. Completing the "flywheel" story (compile → index → search) requires automated sync.
+**Why:** Manual sync means the index goes stale after manual edits or external writers. Agents could get outdated results. Completing the "flywheel" story (compile -> index -> search) requires automated sync for anything that bypasses `wiki brain ingest`.
 
-**Pros:** Index always reflects current compiled/ state. No manual step between compiler and retrieval.
+**Pros:** Index always reflects current compiled wiki state. No manual step between edits and retrieval.
 
-**Cons:** Adds fs.watch complexity, need to debounce rapid changes (compiler may write multiple files), handle partial writes (don't index half-written files).
+**Cons:** Adds fs.watch complexity, need to debounce rapid changes, handle partial writes, and avoid duplicate work when the compiler already reindexed.
 
-**Context:** v0 is manual CLI (`wiki sync`). This is the #1 UX improvement after v0 ships. Consider using chokidar or Bun's built-in file watcher. Debounce with 2-3 second delay after last change detected.
+**Context:** `wiki brain ingest` and `wiki brain drain` already reindex automatically. This follow-up is mainly for manual wiki edits and non-compiler writers. Consider using chokidar or Bun's built-in file watcher with a 2-3 second debounce after the last change.
 
 **Effort:** M (human) → S with CC | **Priority:** P2 | **Depends on:** v0 indexer working | **Added:** 2026-04-11 (CEO review)
 

@@ -1,270 +1,124 @@
-# Personal Wiki MCP Handoff
+# Willipedia Integration Handoff
 
-This document is the integration handoff for `lyon`, the Personal Wiki MCP server and retrieval layer intended to be consumed by ai-orchestration.
+This repo ships a compiler-first knowledge pipeline:
 
-## What This Service Is
+1. `wiki brain ingest` turns a URL into durable wiki pages under `Clippings/`
+2. compiler output is reindexed into Postgres with `pgvector` and `pg_trgm`
+3. `wiki serve` exposes the indexed wiki over MCP stdio
 
-`lyon` exposes compiled wiki content to agents through an MCP server over stdio.
+The MCP service identity is:
 
-High-level flow:
+- name: `willipedia`
+- version: `0.1.0`
 
-1. `wiki sync` scans compiled markdown pages.
-2. Pages are chunked, embedded, and indexed into Postgres with `pgvector`.
-3. `wiki serve` starts an MCP stdio server.
-4. Agents call MCP tools to search pages, fetch full pages, read raw source files, and traverse related links.
+There is no HTTP server. Integration is stdio-only MCP.
 
-Transport:
-
-- MCP over stdio only
-- No HTTP server
-
-Primary entrypoint:
-
-- [src/cli.ts](/Users/willtraweek/conductor/workspaces/Personal-Wiki/lyon/src/cli.ts)
-
-## Runtime Requirements
+## Runtime Contract
 
 - Bun `1.3.x`
-- PostgreSQL with extensions:
-  - `vector`
-  - `pg_trgm`
-- OpenAI API key
-- Optional Anthropic API key
+- PostgreSQL with `vector` and `pg_trgm`
+- required env:
+  - `DATABASE_URL`
+  - `OPENAI_API_KEY`
+- optional env:
+  - `ANTHROPIC_API_KEY`
+  - `COMPILED_PATH`
+  - `RAW_PATH`
+  - `ENABLE_QUERY_EXPANSION`
+  - `PIPELINE_VERSION`
+  - `EMBEDDING_MODEL`
+  - `ANTHROPIC_MODEL`
 
-NPM/Bun dependencies are declared in [package.json](/Users/willtraweek/conductor/workspaces/Personal-Wiki/lyon/package.json).
+Repo defaults from `.env.example`:
 
-Database schema is declared in [migrations/001_initial.sql](/Users/willtraweek/conductor/workspaces/Personal-Wiki/lyon/migrations/001_initial.sql).
-
-## Environment Contract
-
-Environment loading is defined in [src/core/config.ts](/Users/willtraweek/conductor/workspaces/Personal-Wiki/lyon/src/core/config.ts).
-
-Required:
-
-- `DATABASE_URL`
-- `OPENAI_API_KEY`
-
-Optional:
-
-- `ANTHROPIC_API_KEY`
-- `COMPILED_PATH`
-- `RAW_PATH`
-- `ENABLE_QUERY_EXPANSION`
-- `PIPELINE_VERSION`
-- `EMBEDDING_MODEL`
-- `ANTHROPIC_MODEL`
-
-Current defaults:
-
-- `COMPILED_PATH=../compiled`
-- `RAW_PATH=../raw`
+- `COMPILED_PATH=Clippings`
+- `RAW_PATH=raw`
 - `ENABLE_QUERY_EXPANSION=true`
 - `PIPELINE_VERSION=v1-3large-1536-haiku`
 - `EMBEDDING_MODEL=text-embedding-3-large`
 - `ANTHROPIC_MODEL=claude-3-5-haiku-latest`
 
-Recommended values for this repo as it exists today:
+Operational caveat:
 
-- `COMPILED_PATH=Clippings`
-- `RAW_PATH=raw`
+- `wiki brain schema` is the only command that can run without DB/API config
+- every other command constructs the runtime and will fail fast without both `DATABASE_URL` and `OPENAI_API_KEY`
 
-Important integration note:
+## Command Contract
 
-- The current config loader is fail-fast and requires `OPENAI_API_KEY` at process start for all CLI commands, including `migrate`, `status`, and `serve`.
-- If ai-orchestration wants to run the service at all, it should always inject a real `OPENAI_API_KEY`.
+Supported CLI surface:
 
-Reference template:
-
-- [.env.example](/Users/willtraweek/conductor/workspaces/Personal-Wiki/lyon/.env.example)
-
-## Startup Sequence
-
-From repo root:
-
-```bash
-bun install
-bun run src/cli.ts migrate
-bun run src/cli.ts sync
-bun run src/cli.ts serve
-```
-
-Equivalent package scripts:
-
-```bash
-bun run migrate
-bun run sync
-bun run serve
-```
-
-Recommended operational order:
-
-1. Run `migrate` once per environment or deploy.
-2. Run `sync` whenever compiled content changes.
-3. Keep `serve` running as the MCP endpoint for agents.
-
-Useful additional command:
-
-```bash
-bun run src/cli.ts status
-```
-
-## CLI Contract
-
-Supported commands:
-
+- `wiki brain schema`
+- `wiki brain ingest <url> [--refresh] [--dry-run]`
+- `wiki brain ingest --batch <file> [--refresh] [--dry-run]`
+- `wiki brain drain [--limit=20]`
 - `wiki migrate`
 - `wiki sync`
 - `wiki search <query>`
 - `wiki serve`
 - `wiki status`
 
-Behavior:
+Behavior notes:
 
-- `migrate` applies SQL migrations from `migrations/`
-- `sync` indexes compiled markdown into Postgres and prints a diff summary
-- `search` runs hybrid retrieval and prints JSON results
-- `serve` starts the MCP stdio server
-- `status` prints page count, chunk count, last sync time, missing embeddings, and stale pages
+- `brain schema` auto-discovers `Clippings/`, then `compiled/`, then `../compiled/` when `COMPILED_PATH` is unset
+- `brain ingest` accepts one URL or a newline-delimited batch file; blank lines and `#` comments are ignored
+- batch ingest runs with concurrency `3`
+- `brain ingest` and `brain drain` both run migrations first and reindex after completion
+- `sync` is still needed for manual edits or any writer that bypasses the compiler
+- `status` reports page count, chunk count, last sync, missing embeddings, and stale pages
 
-## MCP Server Contract
+## Compiler Contract
 
-Server bootstrap is in [src/mcp/server.ts](/Users/willtraweek/conductor/workspaces/Personal-Wiki/lyon/src/mcp/server.ts).
-
-Server identity:
-
-- Name: `lyon-personal-wiki`
-- Version: `0.1.0`
-
-Transport:
-
-- `StdioServerTransport`
-
-## Exposed MCP Tools
-
-Tool definitions live in [src/mcp/tools.ts](/Users/willtraweek/conductor/workspaces/Personal-Wiki/lyon/src/mcp/tools.ts).
-
-### `search_compiled`
-
-Purpose:
-
-- Hybrid search across compiled wiki pages using keyword search plus vector retrieval
-
-Input:
-
-```json
-{
-  "query": "string",
-  "limit": 8
-}
-```
-
-Notes:
-
-- `query` is required and must be non-empty
-- `limit` is optional, integer, min `1`, max `20`
-- Returns ranked page-level results with `slug`, `title`, `snippet`, `score`, `chunkIndex`, `matchedBy`, and `sourceQueries`
-
-### `get_page`
-
-Purpose:
-
-- Fetch a full compiled page by exact slug, with fuzzy fallback via trigram similarity
-
-Input:
-
-```json
-{
-  "slug": "string"
-}
-```
-
-Notes:
-
-- Exact slug is attempted first
-- Fuzzy fallback threshold is `0.3`
-- Returns full page content, frontmatter, tags, outgoing links, freshness/confidence, and timestamps
-
-### `get_source`
-
-Purpose:
-
-- Read a raw source document from under `raw/`
-
-Input:
-
-```json
-{
-  "path": "string"
-}
-```
-
-Notes:
-
-- Path traversal is blocked
-- Symlink escapes outside `raw/` are blocked
-- This tool only works if `RAW_PATH` points at a populated raw-content directory
-
-### `explore_related`
-
-Purpose:
-
-- Traverse related pages using stored wiki links
-
-Input:
-
-```json
-{
-  "slug": "string",
-  "depth": 2,
-  "limit": 20
-}
-```
-
-Notes:
-
-- Exact slug with fuzzy fallback on the starting page
-- Breadth-first traversal
-- Max depth `3`
-- Max limit `50`
-- Uses a visited set to avoid cycles
-
-## Retrieval Behavior
-
-Search implementation is in [src/core/search.ts](/Users/willtraweek/conductor/workspaces/Personal-Wiki/lyon/src/core/search.ts).
+Implementation lives under `src/brain/`.
 
 Current behavior:
 
-- Chunk-level full-text search
-- Vector similarity search over embeddings
-- Reciprocal Rank Fusion with `k=60`
-- Optional multi-query expansion through Anthropic
-- Results collapsed back to page level
+- supported source formats: article HTML and YouTube watch/share URLs
+- article extraction uses Readability plus HTML-to-markdown normalization
+- YouTube extraction reads the watch page, finds caption tracks, and builds a transcript-backed source body
+- routing is driven by `Clippings/*/README.md`; those directory READMEs act as MECE schema instructions
+- entity reconciliation tries exact slug match, trigram title match, then vector similarity against `entity_embeddings`
+- each ingest is guarded by a Postgres advisory lock keyed on the source URL
+- duplicate sources are skipped unless `--refresh` is set
+- quota overflow records a `pending_ingests` row instead of failing the ingest outright
+- every successful ingest writes a provenance page under `Clippings/sources/`
+- if the primary page already exists, the compiler preserves the body and only appends new `sources:` frontmatter
+- invalid LLM output degrades to a source-only ingest rather than crashing the pipeline
 
-If `ANTHROPIC_API_KEY` is absent:
+`ANTHROPIC_API_KEY` is optional. Without it, the compiler falls back to heuristic entity extraction, category routing, and distilled page drafting.
 
-- Search still works
-- Query expansion falls back to no expansion
-- Chunking falls back to recursive markdown chunking
+## Retrieval Contract
 
-## Indexing Behavior
-
-Indexer implementation is in [src/core/indexer.ts](/Users/willtraweek/conductor/workspaces/Personal-Wiki/lyon/src/core/indexer.ts).
+Implementation lives under `src/core/search.ts`, `src/core/indexer.ts`, and `src/mcp/`.
 
 Current behavior:
 
-- Tolerant markdown ingestion from `COMPILED_PATH`
-- YAML frontmatter is optional
-- Missing metadata is derived when possible
-- Dual hash strategy:
-  - `body_hash` drives re-chunk/re-embed
-  - `metadata_hash` allows metadata-only updates
-- `pipeline_version` forces re-index when retrieval settings change
-- Deleted pages are pruned from the database
-- Dedup candidates are reported after sync using average page embeddings
+- chunk-level full-text search plus vector retrieval
+- reciprocal-rank fusion with `k=60`
+- optional query expansion through Anthropic
+- page-level result collapsing with snippets, score, chunk index, and match provenance
+- `README.md` files are skipped during indexing so category schema can live beside content
+- dual hashes avoid unnecessary work:
+  - `body_hash` triggers re-chunk and re-embed
+  - `metadata_hash` allows metadata-only page updates
+
+## MCP Tools
+
+- `search_compiled`
+  - input: `query`, optional `limit`
+  - output: ranked page hits with `slug`, `title`, `snippet`, `score`, `chunkIndex`, `matchedBy`, and `sourceQueries`
+- `get_page`
+  - input: `slug`
+  - behavior: exact slug first, trigram fallback second
+- `get_source`
+  - input: `path`
+  - behavior: bounded raw-file read under `RAW_PATH`; path traversal and symlink escape are blocked
+- `explore_related`
+  - input: `slug`, optional `depth`, optional `limit`
+  - behavior: breadth-first traversal of stored wiki links with cycle protection
 
 ## Data Model
 
-Main public tables:
+Base retrieval tables from `migrations/001_initial.sql`:
 
 - `pages`
 - `chunks`
@@ -273,87 +127,50 @@ Main public tables:
 - `query_log`
 - `schema_migrations`
 
-Important operational fields:
+Compiler tables from `migrations/002_brain.sql`:
 
-- `pages.pipeline_version`
-- `pages.body_hash`
-- `pages.metadata_hash`
-- `chunks.embedding`
-- `chunks.fts_content`
+- `entity_embeddings`
+- `sources`
+- `domain_quotas`
+- `pending_ingests`
 
-## Query Logging
+Important operational details:
 
-Tool invocations write fire-and-forget rows to `query_log`.
+- `query_log` stores tool name, query text, result count, payload preview, and duration
+- `sources` tracks URL-level dedup plus compiled page slugs
+- `domain_quotas` and `pending_ingests` back the throttle-and-drain workflow
 
-Logged fields:
+## Repo-Specific Assumptions
 
-- tool name
-- user question/input
-- result count
-- result payload preview
-- duration
+- this repo already stores compiled content under `Clippings/`
+- `rate-limits.json` currently throttles YouTube domains
+- the compiler does not write fetched raw payloads to `RAW_PATH`, so `get_source` only becomes useful if another process populates that directory
 
-Payloads are capped to roughly 32 KB before insertion.
-
-This table is intended to be useful later for retrieval quality review and curator workflows.
-
-## Current Repo-Specific Content Assumptions
-
-Today, this repo includes compiled content under `Clippings/`.
-
-That means the easiest working configuration is:
-
-```bash
-export COMPILED_PATH=Clippings
-```
-
-The repo does not currently ship a populated `raw/` directory, so `get_source` will only be useful if ai-orchestration also provisions raw source files and points `RAW_PATH` at them.
-
-## Verification Status
-
-Verified locally:
-
-- `bun run typecheck`
-- `bun test`
-- `wiki migrate` against a real PostgreSQL 18 instance with `pgvector`
-- `wiki status` against that database
-- `wiki serve` startup on stdio
-
-Not verified end-to-end in this repo:
-
-- `wiki sync` against a live OpenAI embedding call
-- `wiki search` against a live indexed production-sized corpus
-
-Reason:
-
-- no real `OPENAI_API_KEY` was available in the shell during verification
-
-## Recommended ai-orchestration Integration
-
-Minimum integration:
+## Recommended Integration Sequence
 
 1. Provision PostgreSQL with `pgvector` and `pg_trgm`.
 2. Inject `DATABASE_URL` and `OPENAI_API_KEY`.
-3. Set `COMPILED_PATH=Clippings` for this repo unless the compiled wiki is moved elsewhere.
-4. Optionally inject `ANTHROPIC_API_KEY` for better chunking and query expansion.
+3. Set `COMPILED_PATH=Clippings` unless the wiki content moves.
+4. Optionally inject `ANTHROPIC_API_KEY`.
 5. Run `wiki migrate`.
-6. Run `wiki sync`.
-7. Launch `wiki serve` as the MCP subprocess.
-8. Register the stdio MCP endpoint in ai-orchestration.
+6. Run `wiki brain schema` once to confirm category routing.
+7. Run `wiki brain ingest <url>` or `wiki brain drain` to compile material.
+8. Run `wiki sync` only for manual edits or non-compiler writers.
+9. Launch `wiki serve` as the MCP subprocess.
 
-If ai-orchestration wants raw-source retrieval too:
+## Breakglass Files
 
-1. Provision a real raw document directory.
-2. Set `RAW_PATH` explicitly.
-3. Ensure requested `get_source` paths stay under that root.
-
-## Files To Read If Something Breaks
-
-- [src/cli.ts](/Users/willtraweek/conductor/workspaces/Personal-Wiki/lyon/src/cli.ts)
-- [src/core/config.ts](/Users/willtraweek/conductor/workspaces/Personal-Wiki/lyon/src/core/config.ts)
-- [src/core/db.ts](/Users/willtraweek/conductor/workspaces/Personal-Wiki/lyon/src/core/db.ts)
-- [src/core/indexer.ts](/Users/willtraweek/conductor/workspaces/Personal-Wiki/lyon/src/core/indexer.ts)
-- [src/core/search.ts](/Users/willtraweek/conductor/workspaces/Personal-Wiki/lyon/src/core/search.ts)
-- [src/mcp/server.ts](/Users/willtraweek/conductor/workspaces/Personal-Wiki/lyon/src/mcp/server.ts)
-- [src/mcp/tools.ts](/Users/willtraweek/conductor/workspaces/Personal-Wiki/lyon/src/mcp/tools.ts)
-- [migrations/001_initial.sql](/Users/willtraweek/conductor/workspaces/Personal-Wiki/lyon/migrations/001_initial.sql)
+- `src/cli.ts`
+- `src/brain/compiler.ts`
+- `src/brain/pipeline.ts`
+- `src/brain/handlers/article.ts`
+- `src/brain/handlers/youtube.ts`
+- `src/core/config.ts`
+- `src/core/db.ts`
+- `src/core/indexer.ts`
+- `src/core/search.ts`
+- `src/mcp/server.ts`
+- `src/mcp/tools.ts`
+- `migrations/001_initial.sql`
+- `migrations/002_brain.sql`
+- `rate-limits.json`
