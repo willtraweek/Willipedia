@@ -25,6 +25,8 @@ bun run serve
 
 `ANTHROPIC_API_KEY` is optional. Without it, the compiler falls back to heuristic entity extraction, routing, and page drafting; retrieval still works with recursive chunking and no query expansion.
 
+Contributor notes live in [CLAUDE.md](CLAUDE.md), deployment/integration details live in [HANDOFF.md](HANDOFF.md), release history is tracked in [CHANGELOG.md](CHANGELOG.md), and deferred work lives in [TODOS.md](TODOS.md).
+
 ## CLI Surface
 
 | Command | Purpose |
