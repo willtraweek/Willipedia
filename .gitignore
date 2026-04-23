@@ -1,0 +1,8 @@
+**/.DS_Store
+.DS_Store
+.gstack/
+
+# Berkeley Mono is a commercial font (personal-use license).
+# Keep out of git so the repo can't accidentally redistribute it.
+# Each developer drops the .woff2 into public/fonts/ manually.
+public/fonts/BerkeleyMono-Variable.woff2
