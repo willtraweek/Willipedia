@@ -445,3 +445,110 @@ All nine are below the threshold for another full review pass. They're yes/no wi
 Three direction-approvals landed. Three prose specs landed. Two outside voices consulted. Seven review passes compacted into one report. Plan file amended. TODOS.md needs two updates (see below).
 
 **Design completeness rating: 5 / 10 → 8.5 / 10.** The remaining 1.5 points are implementation-verification gates that belong in /ship.
+
+---
+
+## GSTACK REVIEW REPORT — plan-eng-review (delta) 2026-04-24
+
+Second engineering pass, scoped as a **delta** against the 2026-04-21 eng review. The prior review resolved 17/17 architectural decisions; those commitments stand. This pass only audited what the 2026-04-22 design review added on top.
+
+### Scope challenge result
+
+Delta items surfaced: 6 (design-review additions D1–D6 in TODOS.md + the hover-preview meta spec + shared-404 topology + pilcrow pinning + font-loading strategy). Of those, 3 were real engineering decisions worth pinning; the rest were pure implementation notes or already-resolved docs work.
+
+### Decisions pinned
+
+**Arch Finding 1 — Hover preview metadata in v0.**
+Resolution: **1B** — render `UPDATED · N DAYS AGO` small-caps metadata only. No `BACKLINKS` count in v0.
+Reasoning: the backlinks count requires either an extra wrapper call (cost) or a denormalized cache (PR #2 infra). Shipping the card *without* backlinks keeps v0 reader-only; backlinks re-enter in PR #2+ once the telemetry panel ships. Supersedes the design-review P1-3 reference to a `BACKLINKS` field.
+Test impact: `HoverPreview.test.ts` asserts valid-slug branch has no `BACKLINKS` field (see delta test plan).
+
+**Arch Finding 2 — 404 route topology.**
+Resolution: **2B** — one shared `/404.astro`; broken wikilinks pass the failed slug via `?slug=` query param.
+Reasoning: `<NudgeCard>` becomes a single shared component with two branches (slug-present → full card with prompt, slug-absent → empty state). Avoids duplicating the nudge UI across an in-route 404 render and Astro's default 404. Also means direct typos (`/banana`) hit the same chrome without extra plumbing.
+Test impact: `nudge-routing.spec.ts` covers both branches. `/page/[...slug]` redirects to `/404?slug=...` when the target `.md` is absent.
+
+**Perf Delta Finding 1 — Font preload scope.**
+Resolution: **1C** — preload all four faces (EB Garamond regular/italic, Fraunces variable, EB Garamond SC).
+Reasoning: the "Private Broadsheet" thesis + typographer-gasp embarrassment test make first-visit typographic fidelity load-bearing for product identity. The 200ms FMP target is now understood as a **warm-cache** target; cold-boot accepts the extra concurrent requests to fonts.gstatic.com. The `fonts-cold-boot.spec.ts` in the delta test plan still validates the degraded-mode (CDN down) fallback, so we're not exposed if the CDN flakes.
+Perf budget note: revisit when self-host fonts lands (TODOS.md — sub-hour effort). Local `.woff2` over Tailscale closes the regression.
+
+### Test coverage delta
+
+Delta test plan written: `~/.gstack/projects/willtraweek-Willipedia/willtraweek-willtraweek-ceo-review-eng-review-test-plan-20260424-delta.md`.
+
+Totals: **22 prior specs + 6 new specs + 2 assertion updates = 28 specs** covering the full v0 surface.
+
+New specs:
+1. `geometry.spec.ts` (E2E) — content-well 38% offset, paragraph text-indent, pilcrow `::after`.
+2. `fonts-cold-boot.spec.ts` (E2E) — fonts.gstatic.com aborted via `page.route()`; fallback readable; typographer-gasp at degraded level.
+3. `nudge-routing.spec.ts` (E2E) — broken-wikilink → `/404?slug=...`, typo → `/404` empty, `aria-disabled="true"` + `[QUEUED FOR v0.2]` marker.
+4. `HoverPreview.test.ts` (unit) — valid/missing/reduced-motion branches.
+5. `NudgeCard.test.ts` (unit) — three modes: broken-wikilink, typo, stub.
+6. `scripts/check-design-rules.ts` (CI lint) — no `font-variant-caps`, SC class+face colocation, no pure black, border-radius hygiene.
+
+Assertion updates:
+- Broken wikilink renders as `<a href="/page/{slug}" class="broken-link">`, not `<span>`. `.broken-link` still carries dotted-muted underline; the `<a>` makes click-to-404 work.
+- Happy-path E2E adds a broken-wikilink click to exercise `/404?slug=` round-trip.
+
+### Failure modes (delta)
+
+- **fonts.gstatic.com unreachable on cold boot** → tuned fallback stack (`'Fraunces', ui-serif, Georgia, 'Times New Roman', serif`) holds; `fonts-cold-boot.spec.ts` validates. User sees degraded-but-readable Willipedia, not Times New Roman raw.
+- **Hover-preview race** (user hovers A then B within 300ms) → AbortController cancels A's fetch; B proceeds. Implementation detail; not a real decision but worth naming.
+- **Broken wikilink with GBrain wrapper down** → wrapper 5xx propagates as 503 from `/api/preview/...`; hover card shows error state; broken-link click still reaches `/404?slug=...` (slug is known from the link itself, no wrapper call needed). Decoupled from wrapper availability.
+- **`prefers-reduced-motion: reduce` set** → CSS media query disables fade/slide on hover card; same transition rules apply to any other island motion. Pure CSS, no JS branching.
+
+### Parallelization update
+
+The 6 new specs can be written in parallel with v0 page routes, with one ordering constraint: `nudge-routing.spec.ts` blocks on `/404.astro` existing. Suggested order for implementation:
+1. `/404.astro` + `<NudgeCard>` shared component first (unblocks routing spec).
+2. Remaining routes + Playwright specs in parallel.
+3. `scripts/check-design-rules.ts` can be written anytime (runs against existing `src/` regardless of routing state).
+
+### TODOs
+
+No TODOs added or changed by this delta review. Existing TODOS.md entries still track the right work:
+- **Self-host fonts** (design-review addition) now has a perf-cost motivation on top of the CDN-independence motivation, given Perf 1C's FMP regression.
+- **Backlinks count + last-updated in hover preview** (v1+ omissions) is the re-entry point for the `BACKLINKS` field trimmed by Arch 1B.
+- All other design-review additions are already tracked.
+
+### Unresolved / punted
+
+- **`/search` partial-snippet fallback** — still deferred until GBrain wrapper `tools/list` is pinned (pre-code Open Question #3 from the prior eng review). Unchanged.
+
+### Completion
+
+Three decisions pinned in under 30 minutes. One delta test plan artifact written. Plan file amended. No TODO churn. The plan is ready for code; the only pre-code gate remaining is the wrapper `tools/list` confirmation.
+
+**Delta completeness rating: 9 / 10.** The missing 1 point is the wrapper contract pin, which is an external dependency, not an engineering decision we can pre-resolve here.
+
+---
+
+## GSTACK REVIEW REPORT — plan-design-review (second pass) 2026-04-24
+
+Targeted cleanup pass, scoped to close the five DESIGN.md ambiguities from the 2026-04-22 design review P2-1 table plus pin the external-link glyph at DESIGN.md:194.
+
+### Six edits applied to DESIGN.md
+
+1. **Dark-mode SOFT drop scoped** (DESIGN.md:101) — `SOFT 50 → 30` now applies to **body Fraunces only**. Drop cap, deck, and kicker keep `SOFT 50`.
+2. **Deck-size breakpoints pinned** (DESIGN.md:119) — stepped, not fluid: 22px ≥1280px, 21px 768–1279px, 20px <768px, italic.
+3. **Kicker / marginalia split** (DESIGN.md:121–122) — two rows instead of one. `<kicker>` at `letter-spacing: 0.12em`; marginalia at `0.08em`. Both 11px uppercase.
+4. **Tracking policy made numeric** (DESIGN.md:118 + new policy note at :124) — section headline now `letter-spacing: 0em` (was "tight"). Non-small-caps display tracking scales with size: `-0.005em` at 48px+, `0em` at 32–47px, `+0.005em` below 32px.
+5. **Dotted-underline offset reference pinned** (DESIGN.md:190) — `0.18em` measured from text baseline via CSS `text-underline-offset`. Collision fallback: bump to `0.20em`; never thin the dot pattern.
+6. **Pilcrow pinned as external-link glyph** (DESIGN.md:197) — `¶` (U+00B6). Section-mark (`§`) alternative removed. The static design-rules check (`scripts/check-design-rules.ts`) could gain a `¶` presence assertion later, but it's not load-bearing.
+
+### P2-1 table → closed
+
+All five P2-1 ambiguity rows from the 2026-04-22 design review now have the resolution landed in DESIGN.md. The P2-1 section can be read as resolved on re-read.
+
+### TODOS.md updated
+
+Two TODOs collapsed into one:
+- **DESIGN.md editing pass** — trimmed to just P2-3 (versioned home page v0 vs PR #2 header split). Five P2-1 items are done.
+- **Pilcrow pin** — removed; done.
+
+### Completion
+
+Six edits, one narrow-scope run, no outside voices needed. The DESIGN.md file is now decision-complete for v0 implementation — every typography rule has a single source of truth and a pinned numeric value. The only remaining DESIGN.md work (P2-3 home page versioning) is aligned with PR #2's scope and can wait.
+
+**Second-pass completeness rating: 10 / 10** for the scoped items. The rating applies only to the six items in this second pass; the broader plan-design-review 2026-04-22 overall score (8.5 / 10) is unchanged by this pass.

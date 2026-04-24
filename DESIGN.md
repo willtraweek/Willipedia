@@ -98,7 +98,7 @@ Berkeley Mono is already self-hosted at `public/fonts/BerkeleyMono-Variable.woff
 - **Orphans/widows:** 3.
 - **Oldstyle numerals** in body: `font-feature-settings: "onum" 1, "kern" 1, "liga" 1`. Body text of a book uses oldstyle; tabular numerals only appear in data tables.
 - **Small caps:** always the real EB Garamond SC file, never the faux `font-variant-caps: small-caps` synthesis — faked small caps are thinner and read wrong at metadata sizes.
-- **Dark mode:** same faces. Drop `SOFT` from 50 to 30 on dark backgrounds to reduce the optical "heaviness" of warm-cream serifs against bistre paper.
+- **Dark mode:** same faces. Drop `SOFT` from 50 to 30 on dark backgrounds **for body Fraunces only**. Drop cap, deck, and kicker keep `SOFT 50` — the drop cap's whole job is to be soft, and decks/kickers are too small for the SOFT axis to change much. The scoped drop reduces optical "heaviness" of warm-cream serifs against bistre paper where it actually matters: in running body.
 
 ### Body copy rules (non-negotiable)
 
@@ -115,10 +115,13 @@ Berkeley Mono is already self-hosted at `public/fonts/BerkeleyMono-Variable.woff
 |---|---|---|
 | Masthead wordmark | 92px | `letter-spacing: 0.02em` |
 | Article title | 48–56px | `letter-spacing: -0.005em` |
-| Section headline | 32px | tight |
-| Deck / standfirst | 20–22px italic | normal |
-| Body | 19–20px | normal |
-| Small caps kicker / marginalia | 11px, letterspaced `0.12em` | uppercase |
+| Section headline | 32px | `letter-spacing: 0em` |
+| Deck / standfirst | 22px at ≥1280px · 21px at 768–1279px · 20px at <768px, italic | `letter-spacing: normal` |
+| Body | 19–20px | `letter-spacing: normal` |
+| Kicker (all `<kicker>` usages) | 11px, uppercase | `letter-spacing: 0.12em` |
+| Marginalia (small caps, in-line notes) | 11px, uppercase | `letter-spacing: 0.08em` |
+
+**Display tracking policy.** For the non-small-caps display roles above, tracking scales with size: `-0.005em` at 48px+, `0em` at 32–47px, `+0.005em` below 32px. Small-caps roles (kicker, marginalia) use their own letter-spacing values in the table — the general policy does not override them. Decks use stepped sizes (no fluid interpolation) so lines break at the same column widths across matching breakpoints.
 
 ## Layout
 
@@ -184,14 +187,14 @@ Same masthead. Same typographic rules. Same oxblood rule strategy. Don't invent 
 **Never blue. Never underlined in the conventional sense.**
 
 - Proper-noun targets (capitalized slug): render as **small caps** in body color.
-  - `[[Gödel]]` → `G͟Ö͟D͟E͟L͟` — small caps with a `1px dotted oxblood` underline, offset `0.18em`.
+  - `[[Gödel]]` → `G͟Ö͟D͟E͟L͟` — small caps with a `1px dotted oxblood` underline, offset `0.18em` from the text baseline (via CSS `text-underline-offset`). If Fraunces descenders collide with the dots at 19–20px body, bump offset to `0.20em`; do not thin the dot pattern.
 - Common-noun targets: render as body color with the same dotted oxblood hairline; case preserved.
 - Hover: underline color deepens to full oxblood, no layout shift.
 - Broken wikilink (target `.md` absent): render as small caps with a dotted **muted** underline and log to `broken_links` table. Do not show a question mark or bracket glyph.
 
 ### External links
 
-- Render with a trailing `⁋` (pilcrow) or superscript `§` in oxblood, inline. No arrow icons.
+- Render with a trailing `¶` (pilcrow, U+00B6) in oxblood, inline. No arrow icons, no section-mark (`§`) alternative — the pilcrow is the pinned external-link glyph for Willipedia, chosen for its editorial character and low collision with body content.
 - `target="_blank" rel="noopener noreferrer"`.
 
 ## Ornamentation

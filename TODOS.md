@@ -40,6 +40,4 @@ Priority buckets reflect plan intent, not commitments.
 
 - **Hover preview card visual spec** (link: `docs/designs/2026-04-20-gbrain-wiki-reader.md` P1-3). 360px card with paper fill + 1px ink-40% border + 300ms hover delay + loading/error states. Already in DESIGN.md as the concept; this adds the full visual spec to apply when implementation starts.
 
-- **DESIGN.md editing pass** — close the five ambiguities named in the review (P2-1): dark-mode SOFT scope, deck-size breakpoints, kicker letter-spacing scope, article-title tracking numerics, dotted-underline offset reference. Also add versioned sections for the home page (v0 vs PR #2). 15-30 min edit pass; do once DESIGN.md is being touched for PR #2 anyway.
-
-- **DESIGN.md: pilcrow (¶) pinned as external-link glyph.** Update DESIGN.md:194 to name the choice unambiguously.
+- **DESIGN.md versioned home page (v0 vs PR #2).** Add the P2-3 header split so the home-page section names which layout ships in v0 (single RECENTLY UPDATED section, 4-up mtime grid) vs PR #2 (6-column newspaper with Continue Reading / Recently Updated / Haven't Visited). The rest of the P2-1 ambiguities (dark-mode SOFT scope, deck breakpoints, kicker spacing, tracking policy, underline offset) were closed 2026-04-24 via /plan-design-review second pass. 10 min edit when PR #2 is being built.
