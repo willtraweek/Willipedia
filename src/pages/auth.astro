@@ -1,0 +1,30 @@
+---
+import { withBase } from "@/lib/base";
+import WikiLayout from "@/layouts/WikiLayout.astro";
+
+const nextPath = Astro.url.searchParams.get("next") || withBase("/");
+const hasError = Astro.url.searchParams.get("error") === "invalid";
+---
+
+<WikiLayout title="Willipedia · Auth" showSearch={false}>
+  <section class="auth-shell">
+    <p class="section-kicker">PRIVATE ARCHIVE</p>
+    <p class="auth-copy">Enter the bearer to continue.</p>
+    <form class="auth-form" method="post" action={withBase("/auth/submit")}>
+      <input type="hidden" name="next" value={nextPath} />
+      <input
+        class:list={["auth-input", hasError && "auth-input--error"]}
+        type="password"
+        name="bearer"
+        placeholder="— bearer —"
+        autocomplete="off"
+        autocapitalize="off"
+        spellcheck="false"
+      />
+      {hasError && <p class="auth-error">UNKNOWN BEARER.</p>}
+      <div class="auth-actions">
+        <button class="text-button" type="submit">ENTER →</button>
+      </div>
+    </form>
+  </section>
+</WikiLayout>

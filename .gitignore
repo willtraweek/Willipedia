@@ -1,6 +1,11 @@
 **/.DS_Store
 .DS_Store
 .gstack/
+node_modules/
+dist/
+.astro/
+playwright-report/
+test-results/
 
 # Berkeley Mono is a commercial font (personal-use license).
 # Keep out of git so the repo can't accidentally redistribute it.

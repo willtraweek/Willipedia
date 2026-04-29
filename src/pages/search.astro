@@ -1,0 +1,109 @@
+---
+import WikiLayout from "@/layouts/WikiLayout.astro";
+import NudgeCard from "@/components/NudgeCard.astro";
+import { encodeSlugPath, withBase } from "@/lib/base";
+import { getArchivePageCount, getExcerptForSlug } from "@/lib/vault";
+import { searchArchive } from "@/lib/wrapper";
+import type { SearchResult } from "@/lib/types";
+
+function escapeHtml(input: string): string {
+  return input
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+function highlightQuery(excerpt: string, query: string): string {
+  const escaped = escapeHtml(excerpt);
+  const tokens = query
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length > 1)
+    .map((token) => token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+
+  if (tokens.length === 0) {
+    return escaped;
+  }
+
+  const pattern = new RegExp(`(${tokens.join("|")})`, "gi");
+  return escaped.replace(pattern, '<span class="search-result__highlight">$1</span>');
+}
+
+function categoriesForResult(result: SearchResult): string {
+  if (result.categories.length > 0) {
+    return result.categories.join(" · ");
+  }
+
+  return result.slug.includes("/")
+    ? result.slug
+        .split("/")
+        .slice(0, -1)
+        .map((segment) => segment.replace(/[-_]+/g, " ").toUpperCase())
+        .join(" · ")
+    : "ARCHIVE";
+}
+
+const bearer = Astro.locals.bearer;
+const query = Astro.url.searchParams.get("q")?.trim() ?? "";
+const archiveCount = await getArchivePageCount();
+
+let results: SearchResult[] = [];
+let offline = false;
+
+if (query && bearer) {
+  try {
+    const wrapperResults = await searchArchive(query, bearer);
+    results = await Promise.all(
+      wrapperResults.map(async (result) => ({
+        ...result,
+        excerpt: result.excerpt || (await getExcerptForSlug(result.slug))
+      }))
+    );
+  } catch {
+    offline = true;
+  }
+}
+---
+
+<WikiLayout title="Willipedia · Search" bearer={bearer}>
+  <section class="search-shell">
+    <header class="search-header">
+      <p class="section-kicker">SEARCH</p>
+      {
+        query ? (
+          <h1 class="search-query">
+            You searched for <strong>{query}</strong>
+          </h1>
+        ) : (
+          <p class="auth-copy">The archive contains {archiveCount} pages.</p>
+        )
+      }
+    </header>
+
+    {
+      !query ? null : offline ? (
+        <p class="search-offline muted-smallcaps">THE ARCHIVE IS OFFLINE.</p>
+      ) : results.length === 0 ? (
+        <>
+          <p class="auth-copy">No pages match this query.</p>
+          <div style="margin-top: 1.5rem;">
+            <NudgeCard mode="broken-wikilink" slug={query} />
+          </div>
+        </>
+      ) : (
+        <section class="search-results">
+          {results.map((result) => (
+            <article class="search-result">
+              <p class="muted-smallcaps">{categoriesForResult(result)}</p>
+              <a class="search-result__title" href={withBase(`/page/${encodeSlugPath(result.slug)}`)}>
+                {result.title}
+              </a>
+              <p class="search-result__excerpt" set:html={highlightQuery(result.excerpt, query)} />
+            </article>
+          ))}
+        </section>
+      )
+    }
+  </section>
+</WikiLayout>
