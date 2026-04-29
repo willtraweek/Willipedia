@@ -1,0 +1,98 @@
+---
+import { encodeSlugPath, withBase } from "@/lib/base";
+
+interface Props {
+  slug: string;
+}
+
+const { slug } = Astro.props;
+const endpoint = withBase(`/api/backlinks/${encodeSlugPath(slug)}`);
+---
+
+<aside class="backlinks-panel" data-backlinks-root data-endpoint={endpoint}>
+  <p class="section-kicker">BACKLINKS</p>
+  <div class="backlinks-panel__body">
+    <p class="muted-smallcaps">· · ·</p>
+  </div>
+</aside>
+
+<script is:inline>
+  for (const root of document.querySelectorAll("[data-backlinks-root]")) {
+    const body = root.querySelector(".backlinks-panel__body");
+    const endpoint = root.getAttribute("data-endpoint");
+    if (!body || !endpoint) continue;
+
+    const renderEmpty = (message) => {
+      body.innerHTML = `<p>${message}</p>`;
+    };
+
+    const renderList = (items) => {
+      if (!items.length) {
+        renderEmpty("No pages link here yet.");
+        return;
+      }
+
+      const limit = 12;
+      const visible = items.slice(0, limit);
+      const hidden = items.slice(limit);
+      body.innerHTML = `
+        <div class="backlinks-panel__list">
+          ${visible
+            .map(
+              (item) => `
+                <article>
+                  <p class="muted-smallcaps">${item.parentFolder}</p>
+                  <a class="backlinks-panel__item-title" href="${item.href}">${item.title}</a>
+                </article>
+              `
+            )
+            .join("")}
+        </div>
+        ${
+          hidden.length
+            ? `<button class="text-button backlinks-panel__show-all" type="button">SHOW ALL ${items.length} →</button>`
+            : ""
+        }
+      `;
+
+      const button = body.querySelector(".backlinks-panel__show-all");
+      if (button) {
+        button.addEventListener("click", () => {
+          button.remove();
+          body.insertAdjacentHTML(
+            "beforeend",
+            hidden
+              .map(
+                (item) => `
+                  <article style="margin-top: 0.9rem;">
+                    <p class="muted-smallcaps">${item.parentFolder}</p>
+                    <a class="backlinks-panel__item-title" href="${item.href}">${item.title}</a>
+                  </article>
+                `
+              )
+              .join("")
+          );
+        });
+      }
+    };
+
+    fetch(endpoint, {
+      headers: {
+        Accept: "application/json"
+      }
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(String(response.status));
+        }
+
+        return response.json();
+      })
+      .then((payload) => {
+        renderList(payload.items || []);
+      })
+      .catch(() => {
+        renderEmpty("UNAVAILABLE");
+      });
+  }
+</script>

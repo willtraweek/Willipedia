@@ -1,0 +1,113 @@
+<div class="hover-preview" hidden data-hover-preview-root></div>
+
+<script is:inline>
+  const previewRoot = document.querySelector("[data-hover-preview-root]");
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const noHover = window.matchMedia("(hover: none)").matches;
+
+  if (!previewRoot || noHover) {
+    if (previewRoot) previewRoot.remove();
+  } else {
+    let showTimer = null;
+    let hideTimer = null;
+    let controller = null;
+    let activeLink = null;
+
+    const hide = () => {
+      if (showTimer) window.clearTimeout(showTimer);
+      if (hideTimer) window.clearTimeout(hideTimer);
+      if (controller) controller.abort();
+      previewRoot.hidden = true;
+      previewRoot.innerHTML = "";
+      activeLink = null;
+    };
+
+    const positionPreview = (link) => {
+      const rect = link.getBoundingClientRect();
+      const width = 360;
+      const gap = 12;
+      const top = Math.max(24, rect.top + window.scrollY - 12);
+      let left = rect.right + window.scrollX + gap;
+      if (left + width > window.scrollX + window.innerWidth - 24) {
+        left = rect.left + window.scrollX - width - gap;
+      }
+
+      previewRoot.style.top = `${top}px`;
+      previewRoot.style.left = `${Math.max(24, left)}px`;
+    };
+
+    const renderBroken = (link) => {
+      previewRoot.innerHTML = `
+        <p class="hover-preview__dek"><em>${link.dataset.previewText}</em></p>
+      `;
+      positionPreview(link);
+      previewRoot.hidden = false;
+    };
+
+    const renderLoading = (link) => {
+      previewRoot.innerHTML = `<p class="hover-preview__loading">· · ·</p>`;
+      positionPreview(link);
+      previewRoot.hidden = false;
+    };
+
+    const renderPayload = (link, payload) => {
+      if (!payload || payload.broken) {
+        return;
+      }
+
+      previewRoot.innerHTML = `
+        <h2 class="hover-preview__title">${payload.title}</h2>
+        <p class="hover-preview__dek">${payload.dek}</p>
+        <p class="hover-preview__meta muted-smallcaps">${payload.updatedLabel}</p>
+      `;
+      positionPreview(link);
+      previewRoot.hidden = false;
+    };
+
+    const scheduleShow = (link) => {
+      if (hideTimer) window.clearTimeout(hideTimer);
+      if (showTimer) window.clearTimeout(showTimer);
+
+      showTimer = window.setTimeout(() => {
+        activeLink = link;
+        if (link.dataset.broken === "true") {
+          renderBroken(link);
+          return;
+        }
+
+        renderLoading(link);
+        controller = new AbortController();
+        fetch(link.dataset.previewUrl, {
+          headers: { Accept: "application/json" },
+          signal: controller.signal
+        })
+          .then(async (response) => {
+            if (!response.ok) throw new Error(String(response.status));
+            return response.json();
+          })
+          .then((payload) => {
+            if (activeLink === link) {
+              renderPayload(link, payload);
+            }
+          })
+          .catch(() => {
+            hide();
+          });
+      }, reducedMotion ? 0 : 300);
+    };
+
+    const scheduleHide = () => {
+      hideTimer = window.setTimeout(() => hide(), 250);
+    };
+
+    document.querySelectorAll("a.wikilink").forEach((link) => {
+      link.addEventListener("mouseenter", () => scheduleShow(link));
+      link.addEventListener("mouseleave", scheduleHide);
+    });
+
+    previewRoot.addEventListener("mouseenter", () => {
+      if (hideTimer) window.clearTimeout(hideTimer);
+    });
+    previewRoot.addEventListener("mouseleave", scheduleHide);
+  }
+</script>

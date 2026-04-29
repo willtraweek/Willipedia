@@ -1,0 +1,18 @@
+---
+import WikiLayout from "@/layouts/WikiLayout.astro";
+import NudgeCard from "@/components/NudgeCard.astro";
+import { withBase } from "@/lib/base";
+
+Astro.response.status = 404;
+const slug = Astro.url.searchParams.get("slug")?.trim() || undefined;
+const bearer = Astro.locals.bearer;
+---
+
+<WikiLayout title="Willipedia · Not Found" bearer={bearer} showSearch={false}>
+  <section class="not-found-shell">
+    <NudgeCard mode={slug ? "broken-wikilink" : "typo"} slug={slug} />
+    <p class="muted-smallcaps" style="margin-top: 1rem;">
+      <a href={withBase("/")}>INDEX</a> · <a href={withBase("/search")}>ARCHIVE</a>
+    </p>
+  </section>
+</WikiLayout>

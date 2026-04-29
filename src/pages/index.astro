@@ -1,0 +1,51 @@
+---
+import { encodeSlugPath, withBase } from "@/lib/base";
+import { formatRelativeDays } from "@/lib/date";
+import WikiLayout from "@/layouts/WikiLayout.astro";
+import NudgeCard from "@/components/NudgeCard.astro";
+import { getRecentEntries } from "@/lib/vault";
+
+const bearer = Astro.locals.bearer;
+const entries = await getRecentEntries(8);
+const primary = entries.slice(0, 4);
+const secondary = entries.slice(4, 8);
+---
+
+<WikiLayout title="Willipedia" bearer={bearer}>
+  {
+    entries.length === 0 ? (
+      <NudgeCard mode="typo" />
+    ) : (
+      <>
+        <section class="home-header">
+          <p class="section-kicker">RECENTLY UPDATED</p>
+        </section>
+        <section class="home-grid">
+          {primary.map((entry) => (
+            <article class="home-cell">
+              <p class="section-kicker">{entry.category}</p>
+              <h2 class="home-cell__title">
+                <a href={withBase(`/page/${encodeSlugPath(entry.slug)}`)}>{entry.title}</a>
+              </h2>
+              <p class="home-cell__deck">{entry.deck}</p>
+              <p class="home-cell__meta muted-smallcaps">{formatRelativeDays(entry.updatedAt)}</p>
+            </article>
+          ))}
+        </section>
+        {secondary.length > 0 && (
+          <section class="home-grid-secondary">
+            {secondary.map((entry) => (
+              <article class="home-cell">
+                <p class="section-kicker">{entry.category}</p>
+                <h2 class="home-cell__title">
+                  <a href={withBase(`/page/${encodeSlugPath(entry.slug)}`)}>{entry.title}</a>
+                </h2>
+                <p class="home-cell__meta muted-smallcaps">{formatRelativeDays(entry.updatedAt)}</p>
+              </article>
+            ))}
+          </section>
+        )}
+      </>
+    )
+  }
+</WikiLayout>

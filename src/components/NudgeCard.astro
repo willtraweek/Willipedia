@@ -1,0 +1,30 @@
+---
+import { getNudgeCardModel } from "@/lib/ui";
+import type { NudgeMode } from "@/lib/types";
+
+interface Props {
+  mode: NudgeMode;
+  slug?: string;
+}
+
+const { mode, slug } = Astro.props;
+const model = getNudgeCardModel(mode, slug);
+---
+
+<section class="nudge-card">
+  <div class="nudge-card__illustration" aria-hidden="true">
+    <div class="nudge-card__drawer"></div>
+  </div>
+  <div>
+    <p class="section-kicker">{model.kicker}</p>
+    <h1 class="nudge-card__headline">{model.headline}</h1>
+    <p class="nudge-card__deck">{model.deck}</p>
+    {model.prompt && <p class="nudge-card__prompt">{model.prompt}</p>}
+    <div class="nudge-card__actions">
+      <a class="nudge-card__cta" href={Astro.url.pathname} aria-disabled="true" role="button">
+        {model.ctaLabel}
+      </a>
+      <span class="muted-smallcaps nudge-card__queued">{model.disabledLabel}</span>
+    </div>
+  </div>
+</section>

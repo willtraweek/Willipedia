@@ -1,0 +1,83 @@
+---
+import { withBase } from "@/lib/base";
+import { shortBearerFingerprint } from "@/lib/config";
+import { formatMastheadDate, getIssueNumber } from "@/lib/date";
+import "@/styles/global.css";
+
+interface Props {
+  title?: string;
+  description?: string;
+  bearer?: string | null;
+  accent?: "default" | "oxblood";
+  pageClass?: string;
+  showSearch?: boolean;
+}
+
+const {
+  title = "Willipedia",
+  description = "Private broadsheet reader for the GBrain archive.",
+  bearer = null,
+  accent = "default",
+  pageClass = "",
+  showSearch = true
+} = Astro.props;
+
+const now = new Date();
+const metaClass = accent === "oxblood" ? "masthead__meta masthead__meta--oxblood" : "masthead__meta";
+const fingerprint = accent === "oxblood" ? "· · ·" : shortBearerFingerprint(bearer);
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..700;1,400..700&family=EB+Garamond+SC&family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,200..700,0..100,0..1;1,9..144,200..700,0..100,0..1&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class={pageClass}>
+    <div class="page-shell">
+      <header class="masthead">
+        <p class={metaClass}>
+          <span>{`VOL.MMXXVI · NO.${getIssueNumber(now)}`}</span>
+          <span>{formatMastheadDate(now)}</span>
+          <span>{fingerprint}</span>
+        </p>
+        <p class="masthead__wordmark">
+          <a href={withBase("/")} style="text-decoration: none;">WILLIPEDIA</a>
+        </p>
+        {showSearch && (
+          <div class="masthead__search">
+            <form action={withBase("/search")} method="get">
+              <input
+                class="masthead__search-input"
+                type="search"
+                name="q"
+                autocomplete="off"
+                placeholder="search the archive"
+              />
+              <button class="masthead__search-button" type="submit">SEARCH →</button>
+            </form>
+          </div>
+        )}
+      </header>
+      <main class="main-content">
+        <slot />
+      </main>
+      <footer class="page-footer">
+        <nav class="page-footer__nav">
+          <a href={withBase("/")}>INDEX</a>
+          <a href={withBase("/search")}>SEARCH</a>
+          <a href={withBase("/404")}>ARCHIVE</a>
+        </nav>
+        <div>PRIVATE BROADSHEET</div>
+      </footer>
+    </div>
+  </body>
+</html>

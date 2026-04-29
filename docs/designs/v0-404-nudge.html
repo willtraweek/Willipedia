@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Not yet in the archive — Willipedia</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..700;1,400..700&family=EB+Garamond+SC&family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,200..700,0..100,0..1;1,9..144,200..700,0..100,0..1&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --paper: #F4EDE0;
+    --ink: #1A1510;
+    --oxblood: #8B1A1A;
+    --muted: #6B5D4D;
+    --rule: rgba(26, 21, 16, 0.12);
+    --rule-strong: rgba(26, 21, 16, 0.32);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #14110D;
+      --ink: #E8DFCE;
+      --oxblood: #C67B5C;
+      --rule-color: #A54A3E;
+      --muted: #9A8D7A;
+      --rule: rgba(232, 223, 206, 0.14);
+      --rule-strong: rgba(232, 223, 206, 0.32);
+    }
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Fraunces", Georgia, serif;
+    font-variation-settings: "opsz" 20, "wght" 400, "SOFT" 50, "WONK" 0;
+    font-feature-settings: "onum" 1, "kern" 1, "liga" 1;
+    font-size: 19px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    body { font-variation-settings: "opsz" 20, "wght" 400, "SOFT" 30, "WONK" 0; }
+  }
+
+  .sheet {
+    width: 100%;
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 48px 56px 40px;
+    flex: 1 0 auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ---------- masthead ---------- */
+
+  .masthead {
+    text-align: center;
+    padding-bottom: 14px;
+  }
+
+  .wordmark {
+    font-family: "EB Garamond", Georgia, serif;
+    font-weight: 500;
+    color: var(--oxblood);
+    font-size: clamp(56px, 10vw, 96px);
+    letter-spacing: 0.02em;
+    line-height: 1;
+    margin: 0;
+    font-feature-settings: "kern" 1;
+  }
+
+  .masthead-rule {
+    border: 0;
+    border-top: 1.5px solid var(--oxblood);
+    border-bottom: 1.5px solid var(--oxblood);
+    height: 5px;
+    margin: 14px 0 12px;
+  }
+
+  .metadata {
+    font-family: "EB Garamond SC", "EB Garamond", Georgia, serif;
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    color: var(--ink);
+    text-transform: uppercase;
+    padding: 0 6px;
+  }
+
+  .metadata .sep { color: var(--muted); margin: 0 0.8em; }
+
+  /* ---------- page body ---------- */
+
+  .archive-kicker {
+    font-family: "EB Garamond SC", "EB Garamond", Georgia, serif;
+    color: var(--oxblood);
+    font-size: 12px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    text-align: center;
+    margin: 40px 0 14px;
+  }
+
+  .split {
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    gap: 48px;
+    align-items: center;
+    margin-bottom: 56px;
+  }
+
+  .illustration {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0 12px;
+  }
+
+  .illustration svg {
+    width: 100%;
+    height: auto;
+    max-width: 380px;
+    display: block;
+  }
+
+  /* The etched drawer lines. Use currentColor so it tracks ink in dark mode. */
+  .drawer { color: var(--ink); }
+  .drawer .edge { stroke: currentColor; stroke-width: 1.3; fill: none; stroke-linejoin: miter; }
+  .drawer .inner-edge { stroke: currentColor; stroke-width: 0.6; fill: none; }
+  .drawer .label { stroke: currentColor; stroke-width: 0.9; fill: none; }
+  .drawer .pull { stroke: currentColor; stroke-width: 1.0; fill: none; }
+  .drawer .hatch { stroke: currentColor; stroke-width: 0.42; fill: none; opacity: 0.85; }
+  .drawer .hatch-light { stroke: currentColor; stroke-width: 0.35; fill: none; opacity: 0.55; }
+  .drawer .shadow { stroke: currentColor; stroke-width: 0.45; fill: none; }
+
+  .text-col { min-width: 0; }
+
+  .headline {
+    font-family: "EB Garamond", Georgia, serif;
+    font-weight: 500;
+    font-size: clamp(40px, 6vw, 64px);
+    line-height: 1.04;
+    letter-spacing: -0.006em;
+    color: var(--ink);
+    margin: 0 0 20px;
+  }
+  .headline em { font-style: italic; font-weight: 500; }
+
+  .deck {
+    font-family: "Fraunces", Georgia, serif;
+    font-variation-settings: "opsz" 28, "wght" 400, "SOFT" 50;
+    font-style: italic;
+    font-size: 20px;
+    line-height: 1.5;
+    color: var(--ink);
+    margin: 0 0 32px;
+    max-width: 56ch;
+  }
+  .deck .slug {
+    font-style: italic;
+    font-variation-settings: "opsz" 28, "wght" 500, "SOFT" 50;
+    color: var(--ink);
+  }
+  .deck .slug::before { content: "\201C"; }
+  .deck .slug::after  { content: "\201D"; }
+
+  /* ---------- CTA ---------- */
+
+  .cta {
+    display: inline-block;
+    padding: 18px 26px;
+    max-width: 320px;
+    border: 1.8px solid var(--oxblood);
+    border-radius: 2px;
+    background: transparent;
+    color: var(--oxblood);
+    font-family: "EB Garamond SC", "EB Garamond", Georgia, serif;
+    font-size: 14px;
+    letter-spacing: 0.14em;
+    line-height: 1.35;
+    text-transform: uppercase;
+    text-align: center;
+    cursor: pointer;
+    font-feature-settings: "kern" 1;
+    transition: background-color 120ms ease, color 120ms ease;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+  .cta:hover, .cta:focus-visible {
+    background: var(--oxblood);
+    color: var(--paper);
+    outline: none;
+  }
+  .cta:focus-visible {
+    outline: 2px dotted var(--oxblood);
+    outline-offset: 3px;
+  }
+  .cta[data-state="queued"] {
+    background: var(--oxblood);
+    color: var(--paper);
+    cursor: default;
+  }
+
+  .subline {
+    margin: 20px 0 0;
+    font-family: "Fraunces", Georgia, serif;
+    font-style: italic;
+    font-size: 16px;
+    color: var(--muted);
+    max-width: 56ch;
+  }
+
+  /* ---------- wikilinks ---------- */
+
+  .wikilink {
+    font-family: "EB Garamond SC", "EB Garamond", Georgia, serif;
+    font-style: normal;
+    color: inherit;
+    letter-spacing: 0.08em;
+    text-decoration: none;
+    padding-bottom: 1px;
+    background-image: linear-gradient(to right, var(--oxblood) 40%, transparent 40%);
+    background-size: 4px 1px;
+    background-repeat: repeat-x;
+    background-position: 0 1.1em;
+    transition: color 120ms ease;
+  }
+  .wikilink:hover {
+    color: var(--oxblood);
+    background-image: linear-gradient(to right, var(--oxblood), var(--oxblood));
+  }
+  .wikilink:focus-visible {
+    outline: 2px dotted var(--oxblood);
+    outline-offset: 2px;
+  }
+
+  /* ---------- footer ---------- */
+
+  .footer {
+    border-top: 1px solid var(--rule);
+    margin-top: auto;
+    padding-top: 18px;
+    text-align: center;
+    font-family: "EB Garamond SC", "EB Garamond", Georgia, serif;
+    font-size: 12px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .footer a {
+    color: inherit;
+    text-decoration: none;
+    padding: 4px 2px;
+    background-image: linear-gradient(to right, var(--oxblood) 40%, transparent 40%);
+    background-size: 4px 1px;
+    background-repeat: repeat-x;
+    background-position: 0 100%;
+  }
+  .footer a:hover { color: var(--oxblood); }
+  .footer .sep { margin: 0 0.8em; color: var(--rule-strong); }
+
+  /* ---------- responsive ---------- */
+
+  @media (max-width: 900px) {
+    .sheet { padding: 36px 32px 28px; }
+    .split {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 24px;
+    }
+    .illustration { order: 2; max-width: 320px; margin: 0 auto; }
+    .text-col { order: 1; }
+    .deck, .subline { max-width: none; }
+  }
+
+  @media (max-width: 560px) {
+    .sheet { padding: 28px 22px 24px; }
+    .archive-kicker { margin-top: 36px; }
+    .metadata {
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      line-height: 1.8;
+    }
+    .metadata .sep { margin: 0 0.5em; }
+    .cta { width: 100%; padding: 16px 18px; font-size: 13px; }
+    .footer .sep { margin: 0 0.4em; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      transition: none !important;
+      animation: none !important;
+    }
+  }
+
+  /* Focus rings */
+  :focus-visible {
+    outline: 2px dotted var(--oxblood);
+    outline-offset: 2px;
+  }
+
+  /* Contenteditable affordance */
+  [contenteditable="true"] {
+    outline: none;
+  }
+  [contenteditable="true"]:focus {
+    background: rgba(139, 26, 26, 0.06);
+    border-radius: 1px;
+  }
+</style>
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <h1 class="wordmark" data-pretext aria-label="Willipedia">WILLIPEDIA</h1>
+    <hr class="masthead-rule" aria-hidden="true">
+    <div class="metadata" data-pretext>
+      <span>VOL.&nbsp;MMXXVI</span>
+      <span class="sep">&middot;</span>
+      <span>NO.&nbsp;112</span>
+      <span class="sep">&middot;</span>
+      <span>WED &middot; APR&nbsp;22 &middot; 2026</span>
+      <span class="sep">&middot;</span>
+      <span>PRIVATE&nbsp;CIRCULATION</span>
+    </div>
+  </header>
+
+  <main>
+
+    <p class="archive-kicker">From the Archive</p>
+
+    <div class="split">
+
+      <figure class="illustration" aria-hidden="true">
+        <svg class="drawer" viewBox="0 0 360 280" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="An empty card-catalog drawer">
+
+          <!-- ============ DRAWER BODY ============ -->
+          <!-- Top perspective face (receding back-right) -->
+          <path class="edge" d="M 56 92 L 100 54 L 316 54 L 272 92 Z"/>
+          <!-- Right perspective face (receding back-right) -->
+          <path class="edge" d="M 272 92 L 316 54 L 316 198 L 272 236 Z"/>
+          <!-- Front face -->
+          <rect class="edge" x="56" y="92" width="216" height="144"/>
+
+          <!-- Bevel: inner frame on front face (gives the wood substance) -->
+          <rect class="inner-edge" x="62" y="98" width="204" height="132"/>
+
+          <!-- Side-edge thickness strokes at the four corners of the front face -->
+          <line class="inner-edge" x1="56"  y1="92"  x2="62"  y2="98"/>
+          <line class="inner-edge" x1="272" y1="92"  x2="266" y2="98"/>
+          <line class="inner-edge" x1="56"  y1="236" x2="62"  y2="230"/>
+          <line class="inner-edge" x1="272" y1="236" x2="266" y2="230"/>
+
+          <!-- ============ LABEL HOLDER (centered brass cartouche) ============ -->
+          <!-- Outer brass frame -->
+          <rect class="label" x="130" y="132" width="68" height="34"/>
+          <!-- Inner paper window -->
+          <rect class="label" x="134" y="136" width="60" height="26"/>
+          <!-- Faint index guideline inside (where the card text would go) -->
+          <line class="inner-edge" x1="140" y1="148" x2="188" y2="148" stroke-dasharray="0.6 2"/>
+          <!-- Four tiny mounting screws in the corners of the brass frame -->
+          <circle class="pull" cx="134" cy="136" r="0.9"/>
+          <circle class="pull" cx="194" cy="136" r="0.9"/>
+          <circle class="pull" cx="134" cy="162" r="0.9"/>
+          <circle class="pull" cx="194" cy="162" r="0.9"/>
+
+          <!-- ============ BAIL PULL (right side, lower third) ============ -->
+          <!-- Backplate (brass oval-ish rectangle) -->
+          <rect class="pull" x="212" y="188" width="46" height="16" rx="1.5"/>
+          <!-- Bail: a U-shaped loop hanging from the plate -->
+          <path class="pull" d="M 221 196 Q 219 208 228 209 L 242 209 Q 251 208 249 196" fill="none"/>
+          <!-- Bail-post pins where the loop attaches -->
+          <circle class="pull" cx="221" cy="196" r="1.4"/>
+          <circle class="pull" cx="249" cy="196" r="1.4"/>
+          <!-- Small highlight notch on the backplate (adds metal feel) -->
+          <line class="inner-edge" x1="217" y1="192" x2="253" y2="192"/>
+
+          <!-- ============ HATCHING: RIGHT FACE (shadow side) ============ -->
+          <g class="hatch">
+            <line x1="276" y1="94"  x2="276" y2="233"/>
+            <line x1="280" y1="90"  x2="280" y2="229"/>
+            <line x1="284" y1="86"  x2="284" y2="226"/>
+            <line x1="288" y1="82"  x2="288" y2="222"/>
+            <line x1="292" y1="78"  x2="292" y2="218"/>
+            <line x1="296" y1="74"  x2="296" y2="214"/>
+            <line x1="300" y1="70"  x2="300" y2="210"/>
+            <line x1="304" y1="66"  x2="304" y2="206"/>
+            <line x1="308" y1="62"  x2="308" y2="202"/>
+            <line x1="312" y1="58"  x2="312" y2="198"/>
+          </g>
+          <!-- Right face: diagonal cross-hatch (richer shadow near the bottom) -->
+          <g class="hatch-light">
+            <line x1="272" y1="120" x2="316" y2="82"/>
+            <line x1="272" y1="144" x2="316" y2="106"/>
+            <line x1="272" y1="168" x2="316" y2="130"/>
+            <line x1="272" y1="192" x2="316" y2="154"/>
+            <line x1="272" y1="216" x2="316" y2="178"/>
+          </g>
+
+          <!-- ============ HATCHING: TOP FACE (grazing light) ============ -->
+          <g class="hatch-light">
+            <line x1="66"  y1="88" x2="110" y2="56"/>
+            <line x1="82"  y1="88" x2="126" y2="56"/>
+            <line x1="98"  y1="88" x2="142" y2="56"/>
+            <line x1="114" y1="88" x2="158" y2="56"/>
+            <line x1="130" y1="88" x2="174" y2="56"/>
+            <line x1="146" y1="88" x2="190" y2="56"/>
+            <line x1="162" y1="88" x2="206" y2="56"/>
+            <line x1="178" y1="88" x2="222" y2="56"/>
+            <line x1="194" y1="88" x2="238" y2="56"/>
+            <line x1="210" y1="88" x2="254" y2="56"/>
+            <line x1="226" y1="88" x2="270" y2="56"/>
+            <line x1="242" y1="88" x2="286" y2="56"/>
+          </g>
+
+          <!-- ============ WOOD GRAIN on front face (subtle) ============ -->
+          <g class="hatch-light" opacity="0.5">
+            <!-- Left of label -->
+            <line x1="70"  y1="100" x2="70"  y2="228"/>
+            <line x1="76"  y1="100" x2="76"  y2="228"/>
+            <line x1="83"  y1="100" x2="83"  y2="228"/>
+            <line x1="91"  y1="100" x2="91"  y2="228"/>
+            <line x1="100" y1="100" x2="100" y2="228"/>
+            <line x1="110" y1="100" x2="110" y2="228"/>
+            <line x1="120" y1="100" x2="120" y2="228"/>
+            <!-- Right of label (avoiding pull + label) -->
+            <line x1="204" y1="100" x2="204" y2="185"/>
+            <line x1="210" y1="100" x2="210" y2="185"/>
+            <line x1="217" y1="100" x2="217" y2="185"/>
+            <line x1="224" y1="100" x2="224" y2="185"/>
+            <line x1="232" y1="100" x2="232" y2="185"/>
+            <line x1="240" y1="100" x2="240" y2="185"/>
+            <line x1="248" y1="100" x2="248" y2="185"/>
+            <line x1="256" y1="100" x2="256" y2="185"/>
+            <line x1="262" y1="100" x2="262" y2="185"/>
+            <!-- Right of label, below pull -->
+            <line x1="204" y1="208" x2="204" y2="228"/>
+            <line x1="212" y1="208" x2="212" y2="228"/>
+            <line x1="220" y1="208" x2="220" y2="228"/>
+            <line x1="232" y1="208" x2="232" y2="228"/>
+            <line x1="244" y1="208" x2="244" y2="228"/>
+            <line x1="256" y1="208" x2="256" y2="228"/>
+            <line x1="264" y1="208" x2="264" y2="228"/>
+          </g>
+
+          <!-- Soft cross-knot on front (a single faint horizontal wood break) -->
+          <g class="hatch-light" opacity="0.35">
+            <path d="M 70 178 Q 100 174, 128 178" fill="none"/>
+            <path d="M 200 112 Q 230 108, 264 112" fill="none"/>
+          </g>
+
+          <!-- ============ GROUND SHADOW ============ -->
+          <g class="shadow">
+            <line x1="40"  y1="250" x2="322" y2="250"/>
+            <line x1="48"  y1="254" x2="314" y2="254"/>
+            <line x1="60"  y1="258" x2="302" y2="258"/>
+            <line x1="76"  y1="262" x2="286" y2="262"/>
+            <line x1="96"  y1="266" x2="266" y2="266"/>
+            <line x1="120" y1="270" x2="242" y2="270"/>
+          </g>
+
+        </svg>
+      </figure>
+
+      <div class="text-col">
+        <h2 class="headline" data-pretext>Not yet in <em>the archive</em>.</h2>
+
+        <p class="deck" data-pretext>
+          You asked for <span class="slug" contenteditable="true" spellcheck="false">Category Theory in Neuroscience</span> &mdash; Willipedia has no page by that name.
+        </p>
+
+        <button type="button" class="cta" id="nudge-cta">
+          Research this topic and draft a page
+        </button>
+
+        <p class="subline" data-pretext>
+          or return to the <a class="wikilink" href="/index.html">INDEX</a>
+          or search the <a class="wikilink" href="/archive.html">ARCHIVE</a>.
+        </p>
+      </div>
+
+    </div>
+
+  </main>
+
+  <footer class="footer">
+    <a href="/index.html">INDEX</a>
+    <span class="sep">&middot;</span>
+    <a href="/random">RANDOM</a>
+    <span class="sep">&middot;</span>
+    <a href="/recent">RECENT</a>
+    <span class="sep">&middot;</span>
+    <a href="/search">SEARCH</a>
+  </footer>
+
+</div>
+
+<script type="module">
+  import { prepare, layout } from './pretext.js';
+
+  // ---------- Pretext wiring ----------
+
+  // All `[data-pretext]` elements reflow on resize / edit.
+  const nodes = Array.from(document.querySelectorAll('[data-pretext]'));
+  const handles = new WeakMap();
+
+  function fontString(el) {
+    const cs = getComputedStyle(el);
+    // CSS font shorthand Pretext needs. Build it ourselves because the computed
+    // `font` shorthand is sometimes empty when font-variation-settings is applied.
+    const weight = cs.fontWeight || '400';
+    const style = cs.fontStyle || 'normal';
+    const size = cs.fontSize || '16px';
+    const family = cs.fontFamily || 'serif';
+    return `${style} ${weight} ${size} ${family}`;
+  }
+
+  function lineHeightPx(el) {
+    const cs = getComputedStyle(el);
+    const lh = cs.lineHeight;
+    if (lh.endsWith('px')) return parseFloat(lh);
+    const fs = parseFloat(cs.fontSize) || 16;
+    // 'normal' → ~1.2 for most serifs. We set explicit line-height on the
+    // specific elements that need Pretext, so this fallback is rarely hit.
+    if (lh === 'normal') return fs * 1.2;
+    return fs * parseFloat(lh);
+  }
+
+  async function prepareAll() {
+    await document.fonts.ready;
+    for (const el of nodes) {
+      handles.set(el, prepare(el.textContent, fontString(el)));
+    }
+  }
+
+  function relayout() {
+    for (const el of nodes) {
+      const h = handles.get(el);
+      if (!h) continue;
+      const width = el.clientWidth;
+      if (width <= 0) continue;
+      const lh = lineHeightPx(el);
+      const { height } = layout(h, width, lh);
+      // Only set height on block-level text nodes — headline, deck, subline.
+      // Inline nodes (metadata, wordmark) are allowed to size naturally.
+      if (el.tagName === 'H2' || el.tagName === 'P') {
+        el.style.minHeight = `${height}px`;
+      }
+    }
+  }
+
+  // Re-prepare on content edit (contenteditable slug).
+  const editables = document.querySelectorAll('[contenteditable="true"]');
+  for (const el of editables) {
+    el.addEventListener('input', () => {
+      // Re-prepare any [data-pretext] ancestor so its layout is correct.
+      let parent = el.closest('[data-pretext]');
+      while (parent) {
+        handles.set(parent, prepare(parent.textContent, fontString(parent)));
+        parent = parent.parentElement?.closest('[data-pretext]');
+      }
+      relayout();
+    });
+  }
+
+  // ---------- CTA click: local jsonl fallback (PR#2 is not landed) ----------
+
+  document.getElementById('nudge-cta')?.addEventListener('click', (ev) => {
+    const btn = ev.currentTarget;
+    if (btn.dataset.state === 'queued') return;
+    const slugEl = document.querySelector('.deck .slug');
+    const slug = (slugEl?.textContent || '').trim();
+    if (!slug) return;
+
+    const record = {
+      slug,
+      ts: new Date().toISOString(),
+      path: location.pathname,
+      referrer: document.referrer || null,
+    };
+
+    // Try the nudge endpoint. If it fails, fall back to localStorage jsonl.
+    // Rendering path is isolated: a nudge write failure must not break the page.
+    try {
+      fetch('/api/nudge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(record),
+        keepalive: true,
+      }).catch(() => appendLocal(record));
+    } catch (_) {
+      appendLocal(record);
+    }
+
+    btn.dataset.state = 'queued';
+    btn.textContent = 'Queued for drafting';
+  });
+
+  function appendLocal(rec) {
+    try {
+      const key = 'willipedia.nudges.jsonl';
+      const line = JSON.stringify(rec) + '\n';
+      const existing = localStorage.getItem(key) || '';
+      localStorage.setItem(key, existing + line);
+    } catch (_) { /* storage full or disabled — drop silently */ }
+  }
+
+  // ---------- Lifecycle ----------
+
+  await prepareAll();
+  relayout();
+
+  // Re-layout on viewport resize.
+  let rafId = 0;
+  new ResizeObserver(() => {
+    cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(relayout);
+  }).observe(document.body);
+</script>
+
+</body>
+</html>

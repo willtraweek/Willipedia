@@ -1,0 +1,45 @@
+---
+import { withBase } from "@/lib/base";
+import { formatTimestamp } from "@/lib/date";
+import {
+  getInitialSetupIssues,
+  getWrapperTimeoutIssue
+} from "@/lib/config";
+import WikiLayout from "@/layouts/WikiLayout.astro";
+
+const issues = [...getInitialSetupIssues()];
+if (Astro.url.searchParams.get("code") === "WRAPPER_TIMEOUT") {
+  issues.push(getWrapperTimeoutIssue(new Error("Wrapper did not answer within 5s.")));
+}
+
+if (issues.length === 0) {
+  return Astro.redirect(withBase("/"));
+}
+
+const bearer = Astro.locals.bearer;
+---
+
+<WikiLayout
+  title="Willipedia · Issued In Error"
+  bearer={bearer}
+  accent="oxblood"
+  pageClass="page--setup"
+  showSearch={false}
+>
+  <section class="setup-shell">
+    <p class="section-kicker">ISSUED IN ERROR</p>
+    {issues.map((issue) => (
+      <article class="setup-stanza">
+        <p class="article-kicker">{issue.code}</p>
+        <p class="setup-copy">{issue.paragraph}</p>
+        <pre class="setup-code">{issue.configLines.join("\n")}</pre>
+      </article>
+    ))}
+    {bearer && (
+      <p class="muted-smallcaps" style="margin-top: 1.5rem;">
+        <a href={withBase("/")}>RETURN TO ARCHIVE →</a>
+      </p>
+    )}
+    <p class="muted-smallcaps" style="margin-top: 1rem;">ISSUED AT {formatTimestamp()}</p>
+  </section>
+</WikiLayout>

@@ -1,0 +1,74 @@
+---
+import BacklinksPanel from "@/components/BacklinksPanel.astro";
+import HoverPreview from "@/components/HoverPreview.astro";
+import NudgeCard from "@/components/NudgeCard.astro";
+import { withBase } from "@/lib/base";
+import { formatRelativeDays } from "@/lib/date";
+import { renderMarkdown } from "@/lib/markdown";
+import { getVaultIndex, resolveSlug } from "@/lib/vault";
+import WikiLayout from "@/layouts/WikiLayout.astro";
+
+const rawSlug = Astro.params.slug ?? "";
+const bearer = Astro.locals.bearer;
+const entry = await resolveSlug(rawSlug).catch(() => null);
+
+if (!entry) {
+  return Astro.redirect(withBase(`/404?slug=${encodeURIComponent(rawSlug || "missing")}`));
+}
+
+const index = await getVaultIndex();
+const resolveWikilink = (rawTarget: string, rawLabel?: string) => {
+  const cleaned = rawTarget
+    .replace(/\\/g, "/")
+    .replace(/\.md$/i, "")
+    .split("#")[0]
+    .replace(/^\/+|\/+$/g, "");
+  const linked = index.slugMap.get(cleaned) ?? index.slugKeyMap.get(cleaned.toLowerCase());
+  const slug = linked?.slug ?? cleaned;
+  return {
+    slug,
+    exists: Boolean(linked),
+    displayText: rawLabel || linked?.title || cleaned.split("/").at(-1) || cleaned,
+    brokenPreviewText: "No page yet. Click to propose one for research."
+  };
+};
+
+const renderedHtml = entry.isStub
+  ? ""
+  : await renderMarkdown(entry.bodyMarkdown, {
+      resolveWikilink
+    });
+---
+
+<WikiLayout title={`Willipedia · ${entry.title}`} bearer={bearer}>
+  <article class="article-page">
+    <div class="article-rail">
+      <div class="article-column">
+        <p class="article-kicker">{entry.category}</p>
+        <h1 class="article-title">{entry.title}</h1>
+        <p class="article-deck">{entry.deck}</p>
+        <p class="muted-smallcaps">{formatRelativeDays(entry.updatedAt)}</p>
+        <hr class="article-divider" />
+
+        {
+          entry.isStub ? (
+            <section class="stub-shell">
+              <p class="stub-copy">
+                The title has been set in the archive, but the article body has not been written yet.
+              </p>
+              <div style="margin-top: 1.5rem;">
+                <NudgeCard mode="stub" slug={entry.slug} />
+              </div>
+            </section>
+          ) : (
+            <div class="article-body" set:html={renderedHtml} />
+          )
+        }
+      </div>
+
+      {!entry.isStub && <BacklinksPanel slug={entry.slug} />}
+    </div>
+  </article>
+
+  {!entry.isStub && <HoverPreview />}
+</WikiLayout>
