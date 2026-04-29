@@ -95,19 +95,12 @@ Berkeley Mono is already self-hosted at `public/fonts/BerkeleyMono-Variable.woff
 - **Indented paragraphs.** First-line indent `1.2em` (~24px at 20px body). No blank line between paragraphs.
 - **Measure:** 66–72ch per column.
 - **Hyphenation** on: `hyphens: auto`.
-- **Orphans/widows:** 3.
+- **Orphans/widows:** `orphans: 3; widows: 3;` where supported.
+- **Line-height:** `1.62` for articles, `1.45` for sidebar blurbs.
 - **Oldstyle numerals** in body: `font-feature-settings: "onum" 1, "kern" 1, "liga" 1`. Body text of a book uses oldstyle; tabular numerals only appear in data tables.
+- **Italics** are italic (the real italic file), never oblique-faked.
 - **Small caps:** always the real EB Garamond SC file, never the faux `font-variant-caps: small-caps` synthesis — faked small caps are thinner and read wrong at metadata sizes.
 - **Dark mode:** same faces. Drop `SOFT` from 50 to 30 on dark backgrounds **for body Fraunces only**. Drop cap, deck, and kicker keep `SOFT 50` — the drop cap's whole job is to be soft, and decks/kickers are too small for the SOFT axis to change much. The scoped drop reduces optical "heaviness" of warm-cream serifs against bistre paper where it actually matters: in running body.
-
-### Body copy rules (non-negotiable)
-
-- **Indented paragraphs.** First line indent `1.2em`. No blank line between paragraphs.
-- Measure: **66–72ch** per column.
-- Hyphenation on (`hyphens: auto`).
-- Widows/orphans: `orphans: 3; widows: 3;` where supported.
-- Line-height `1.62` for articles, `1.45` for sidebar blurbs.
-- Italics are italic (not oblique-faked). Small caps are true small caps (`font-feature-settings: "smcp"` or true SC file).
 
 ### Display sizes (fluid, but centered around)
 
@@ -251,7 +244,6 @@ When we pick up the print stylesheet, the broadsheet aesthetic already translate
 
 - **Berkeley Mono license.** Body + display are now SIL OFL (EB Garamond + Fraunces), so the only commercial font in the stack is Berkeley Mono at $75 personal-use. Purchase from berkeleygraphics.com before shipping real markup. Until purchased, the `font-family` stack falls back to IBM Plex Mono (also free, already loaded in the specimen). Personal-use license covers Willipedia (single-user, Tailscale-only); if scope ever expands to public hosting, upgrade to the commercial web-font license.
 - **Issue number source of truth.** `NO. {day-of-year}` is cute, but on 2026-12-31 it reads `NO. 365`. Fine. First issue of 2027 resets to `NO. 1`. Confirm behavior is desired (it is — a new year is a new volume).
-- **Marginalia on mobile.** Inline-below-paragraph vs. footnote-drawer is a real choice. Inline-below is simpler; drawer is nicer. Decide during implementation.
 
 ## Reference
 
